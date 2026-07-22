@@ -1,0 +1,29 @@
+{
+  "name": "sense-flip-clock",
+  "author": "Greg Dragonetti",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Sense Flip Clock",
+    "uuid": "1e628eb1-3a86-4efd-8cfd-af0c85e3feb3",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": ["emery"],
+    "watchapp": {
+      "watchface": true
+    },
+    "capabilities": ["location"],
+    "messageKeys": [
+      "TEMPERATURE",
+      "TEMP_HIGH",
+      "TEMP_LOW",
+      "CONDITIONS",
+      "REQUEST_WEATHER"
+    ],
+    "resources": {
+      "media": []
+    }
+  }
+}
