@@ -20,10 +20,38 @@
       "TEMP_HIGH",
       "TEMP_LOW",
       "CONDITIONS",
+      "WEATHER_CODE",
+      "IS_DAY",
       "REQUEST_WEATHER"
     ],
     "resources": {
-      "media": []
+      "media": [
+        { "type": "bitmap", "name": "ICON_0", "file": "weather/icon_0.png" },
+        { "type": "bitmap", "name": "ICON_0_NIGHT", "file": "weather/icon_0_night.png" },
+        { "type": "bitmap", "name": "ICON_1", "file": "weather/icon_1.png" },
+        { "type": "bitmap", "name": "ICON_1_NIGHT", "file": "weather/icon_1_night.png" },
+        { "type": "bitmap", "name": "ICON_2", "file": "weather/icon_2.png" },
+        { "type": "bitmap", "name": "ICON_2_NIGHT", "file": "weather/icon_2_night.png" },
+        { "type": "bitmap", "name": "ICON_3", "file": "weather/icon_3.png" },
+        { "type": "bitmap", "name": "ICON_3_NIGHT", "file": "weather/icon_3_night.png" },
+        { "type": "bitmap", "name": "ICON_45", "file": "weather/icon_45.png" },
+        { "type": "bitmap", "name": "ICON_48", "file": "weather/icon_48.png" },
+        { "type": "bitmap", "name": "ICON_45_48_NIGHT", "file": "weather/icon_45_48_night.png" },
+        { "type": "bitmap", "name": "ICON_51_53", "file": "weather/icon_51_53.png" },
+        { "type": "bitmap", "name": "ICON_55", "file": "weather/icon_55.png" },
+        { "type": "bitmap", "name": "ICON_56_57", "file": "weather/icon_56_57.png" },
+        { "type": "bitmap", "name": "ICON_61_63_65", "file": "weather/icon_61_63_65.png" },
+        { "type": "bitmap", "name": "ICON_61_63_65_NIGHT", "file": "weather/icon_61_63_65_night.png" },
+        { "type": "bitmap", "name": "ICON_66_67", "file": "weather/icon_66_67.png" },
+        { "type": "bitmap", "name": "ICON_71", "file": "weather/icon_71.png" },
+        { "type": "bitmap", "name": "ICON_71_85_86_NIGHT", "file": "weather/icon_71_85_86_night.png" },
+        { "type": "bitmap", "name": "ICON_73", "file": "weather/icon_73.png" },
+        { "type": "bitmap", "name": "ICON_75", "file": "weather/icon_75.png" },
+        { "type": "bitmap", "name": "ICON_77", "file": "weather/icon_77.png" },
+        { "type": "bitmap", "name": "ICON_80_81_82", "file": "weather/icon_80_81_82.png" },
+        { "type": "bitmap", "name": "ICON_85_86", "file": "weather/icon_85_86.png" },
+        { "type": "bitmap", "name": "ICON_95_96_99", "file": "weather/icon_95_96_99.png" }
+      ]
     }
   }
 }

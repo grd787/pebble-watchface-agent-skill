@@ -2,9 +2,15 @@
  * PebbleKit JS — fetches current conditions + today's hi/lo from
  * Open-Meteo (free, no API key) and sends them to the watch.
  *
+ * WEATHER_CODE is the raw WMO code (see weatherCodeToCondition below for
+ * the full table) — the watch matches it directly against icon resources.
+ * CONDITIONS is a bucketed human-readable string, used only for the
+ * on-screen label text, not for icon selection.
+ *
  * Requires package.json:
  *   "capabilities": ["location"],
- *   "messageKeys": ["TEMPERATURE", "TEMP_HIGH", "TEMP_LOW", "CONDITIONS", "REQUEST_WEATHER"],
+ *   "messageKeys": ["TEMPERATURE", "TEMP_HIGH", "TEMP_LOW", "CONDITIONS",
+ *                   "WEATHER_CODE", "IS_DAY", "REQUEST_WEATHER"],
  *   "enableMultiJS": true
  */
 
@@ -41,7 +47,7 @@ function locationSuccess(pos) {
   var url = 'https://api.open-meteo.com/v1/forecast?' +
       'latitude=' + pos.coords.latitude +
       '&longitude=' + pos.coords.longitude +
-      '&current=temperature_2m,weather_code' +
+      '&current=temperature_2m,weather_code,is_day' +
       '&daily=temperature_2m_max,temperature_2m_min' +
       '&temperature_unit=fahrenheit' +
       '&timezone=auto';
@@ -49,7 +55,8 @@ function locationSuccess(pos) {
   xhrRequest(url, 'GET', function (responseText) {
     var json = JSON.parse(responseText);
     var temperature = Math.round(json.current.temperature_2m);
-    var conditions = weatherCodeToCondition(json.current.weather_code);
+    var weatherCode = json.current.weather_code;
+    var conditions = weatherCodeToCondition(weatherCode);
     var tempHigh = Math.round(json.daily.temperature_2m_max[0]);
     var tempLow = Math.round(json.daily.temperature_2m_min[0]);
 
@@ -57,7 +64,9 @@ function locationSuccess(pos) {
       'TEMPERATURE': temperature,
       'TEMP_HIGH': tempHigh,
       'TEMP_LOW': tempLow,
-      'CONDITIONS': conditions
+      'CONDITIONS': conditions,
+      'WEATHER_CODE': weatherCode,
+      'IS_DAY': json.current.is_day
     };
 
     Pebble.sendAppMessage(dictionary,

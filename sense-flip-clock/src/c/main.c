@@ -2,15 +2,15 @@
  * Sense Flip Clock — Pebble Time 2 (Emery, 200x228)
  *
  * Inspired by the HTC Sense flip-clock widget: bare bold digits for
- * hour/minute (no card background), a colour weather icon in the middle,
- * and a bottom info strip with date/conditions + temperature/hi-lo.
+ * hour/minute (no card background), a colour weather icon bitmap in the
+ * middle, and a bottom info strip with date/conditions + temperature/hi-lo.
  *
  * Time font is a placeholder system font — swap in a custom Segoe UI
  * font resource once provided (see PLACEHOLDER FONT note below).
  *
- * Battery-efficient: redraws on MINUTE_UNIT only. No continuous animation;
- * precipitation dots use a deterministic per-minute frame counter instead
- * of a timer, so the scene varies without extra redraws.
+ * Battery-efficient: redraws on MINUTE_UNIT only. The weather icon bitmap
+ * is only (re)loaded when new weather data arrives (~every 30 min), not
+ * on every draw.
  */
 
 #include <pebble.h>
@@ -33,33 +33,84 @@ static GFont s_small_font;
 
 static struct tm s_time;
 static bool s_time_valid = false;
-static int s_frame = 0;
 
 static bool s_weather_valid = false;
 static int s_weather_code = -1;
+static bool s_is_day = true;
 static int s_temp = 0;
 static int s_temp_high = 0;
 static int s_temp_low = 0;
 static char s_condition[16] = "";
+static GBitmap *s_weather_bitmap = NULL;
 
 // ============================================================================
 // WEATHER
 // ============================================================================
 
-static int condition_to_code(const char *c) {
-    if (strcmp(c, "Clear") == 0) return 0;
-    if (strcmp(c, "Cloudy") == 0) return 2;
-    if (strcmp(c, "Fog") == 0) return 45;
-    if (strcmp(c, "Drizzle") == 0) return 51;
-    if (strcmp(c, "Fz. Drizzle") == 0) return 56;
-    if (strcmp(c, "Rain") == 0) return 63;
-    if (strcmp(c, "Fz. Rain") == 0) return 66;
-    if (strcmp(c, "Snow") == 0) return 73;
-    if (strcmp(c, "Snow Grains") == 0) return 77;
-    if (strcmp(c, "Showers") == 0) return 81;
-    if (strcmp(c, "Snow Shwrs") == 0) return 85;
-    if (strcmp(c, "T-Storm") == 0) return 95;
-    return 2;
+// Maps a raw WMO weather_code (+ day/night) to a bitmap resource ID.
+// Night variants only exist for a subset of codes (clear/cloudy/fog/rain/
+// snow) — everything else falls back to its day icon regardless of s_is_day.
+// NOTE: the "71 + 86 + 87" night icon filename didn't match a real WMO code
+// (87 isn't one) — treated here as 71/85/86 to mirror the "85 + 86" day
+// icon; flag if that assumption is wrong.
+static uint32_t resource_for_weather(int code, bool is_day) {
+    if (!is_day) {
+        switch (code) {
+            case 0: return RESOURCE_ID_ICON_0_NIGHT;
+            case 1: return RESOURCE_ID_ICON_1_NIGHT;
+            case 2: return RESOURCE_ID_ICON_2_NIGHT;
+            case 3: return RESOURCE_ID_ICON_3_NIGHT;
+            case 45:
+            case 48: return RESOURCE_ID_ICON_45_48_NIGHT;
+            case 61:
+            case 63:
+            case 65: return RESOURCE_ID_ICON_61_63_65_NIGHT;
+            case 71:
+            case 85:
+            case 86: return RESOURCE_ID_ICON_71_85_86_NIGHT;
+            default: break;
+        }
+    }
+
+    switch (code) {
+        case 0: return RESOURCE_ID_ICON_0;
+        case 1: return RESOURCE_ID_ICON_1;
+        case 2: return RESOURCE_ID_ICON_2;
+        case 3: return RESOURCE_ID_ICON_3;
+        case 45: return RESOURCE_ID_ICON_45;
+        case 48: return RESOURCE_ID_ICON_48;
+        case 51:
+        case 53: return RESOURCE_ID_ICON_51_53;
+        case 55: return RESOURCE_ID_ICON_55;
+        case 56:
+        case 57: return RESOURCE_ID_ICON_56_57;
+        case 61:
+        case 63:
+        case 65: return RESOURCE_ID_ICON_61_63_65;
+        case 66:
+        case 67: return RESOURCE_ID_ICON_66_67;
+        case 71: return RESOURCE_ID_ICON_71;
+        case 73: return RESOURCE_ID_ICON_73;
+        case 75: return RESOURCE_ID_ICON_75;
+        case 77: return RESOURCE_ID_ICON_77;
+        case 80:
+        case 81:
+        case 82: return RESOURCE_ID_ICON_80_81_82;
+        case 85:
+        case 86: return RESOURCE_ID_ICON_85_86;
+        case 95:
+        case 96:
+        case 99: return RESOURCE_ID_ICON_95_96_99;
+        default: return RESOURCE_ID_ICON_2;
+    }
+}
+
+static void update_weather_bitmap(void) {
+    if (s_weather_bitmap) {
+        gbitmap_destroy(s_weather_bitmap);
+        s_weather_bitmap = NULL;
+    }
+    s_weather_bitmap = gbitmap_create_with_resource(resource_for_weather(s_weather_code, s_is_day));
 }
 
 static void request_weather(void) {
@@ -75,13 +126,17 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     Tuple *high_tuple = dict_find(iterator, MESSAGE_KEY_TEMP_HIGH);
     Tuple *low_tuple = dict_find(iterator, MESSAGE_KEY_TEMP_LOW);
     Tuple *cond_tuple = dict_find(iterator, MESSAGE_KEY_CONDITIONS);
+    Tuple *code_tuple = dict_find(iterator, MESSAGE_KEY_WEATHER_CODE);
+    Tuple *day_tuple = dict_find(iterator, MESSAGE_KEY_IS_DAY);
 
-    if (temp_tuple && cond_tuple) {
+    if (temp_tuple && cond_tuple && code_tuple) {
         s_temp = (int)temp_tuple->value->int32;
         if (high_tuple) s_temp_high = (int)high_tuple->value->int32;
         if (low_tuple) s_temp_low = (int)low_tuple->value->int32;
         snprintf(s_condition, sizeof(s_condition), "%s", cond_tuple->value->cstring);
-        s_weather_code = condition_to_code(s_condition);
+        s_weather_code = (int)code_tuple->value->int32;
+        s_is_day = day_tuple ? (day_tuple->value->int32 != 0) : true;
+        update_weather_bitmap();
         s_weather_valid = true;
         layer_mark_dirty(s_canvas_layer);
     }
@@ -94,111 +149,6 @@ static void inbox_dropped_callback(AppMessageResult reason, void *context) {
 static void outbox_failed_callback(DictionaryIterator *iterator,
                                     AppMessageResult reason, void *context) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Weather request failed: %d", reason);
-}
-
-// ============================================================================
-// WEATHER ICON DRAWING
-// ============================================================================
-
-static void draw_sun(GContext *ctx, GPoint center, int r, bool with_rays) {
-    graphics_context_set_fill_color(ctx, GColorYellow);
-    graphics_fill_circle(ctx, center, r + 4);
-    graphics_context_set_fill_color(ctx, GColorOrange);
-    graphics_fill_circle(ctx, center, r);
-
-    if (with_rays) {
-        graphics_context_set_stroke_color(ctx, GColorYellow);
-        graphics_context_set_stroke_width(ctx, 3);
-        for (int i = 0; i < 8; i++) {
-            int32_t angle = (TRIG_MAX_ANGLE * i) / 8;
-            int x1 = center.x + ((r + 6) * sin_lookup(angle)) / TRIG_MAX_RATIO;
-            int y1 = center.y - ((r + 6) * cos_lookup(angle)) / TRIG_MAX_RATIO;
-            int x2 = center.x + ((r + 15) * sin_lookup(angle)) / TRIG_MAX_RATIO;
-            int y2 = center.y - ((r + 15) * cos_lookup(angle)) / TRIG_MAX_RATIO;
-            graphics_draw_line(ctx, GPoint(x1, y1), GPoint(x2, y2));
-        }
-    }
-}
-
-static void draw_cloud(GContext *ctx, GPoint center, int r, GColor color) {
-    graphics_context_set_fill_color(ctx, color);
-    graphics_fill_circle(ctx, GPoint(center.x - r / 2, center.y), (r * 3) / 5);
-    graphics_fill_circle(ctx, GPoint(center.x + r / 3, center.y - r / 4), (r * 2) / 3);
-    graphics_fill_circle(ctx, GPoint(center.x + r, center.y + r / 6), r / 2);
-    graphics_fill_rect(ctx,
-        GRect(center.x - r, center.y, (r * 2) + r / 2, (r * 2) / 3),
-        (r * 2) / 3 / 2, GCornersAll);
-}
-
-static void draw_weather_icon(GContext *ctx, GRect box, int code, int frame) {
-    GPoint center = grect_center_point(&box);
-    int r = box.size.w / 2 - 6;
-
-    if (code < 0) {
-        // No data yet — faint placeholder ring.
-        graphics_context_set_stroke_color(ctx, GColorDarkGray);
-        graphics_context_set_stroke_width(ctx, 2);
-        graphics_draw_circle(ctx, center, r);
-        return;
-    }
-
-    bool clear = (code == 0);
-    bool partly = (code >= 1 && code <= 3);
-    bool fog = (code >= 45 && code <= 48);
-    bool rainy = (code >= 51 && code <= 82 && !fog);
-    bool snowy = (code >= 71 && code <= 86 &&
-                  (code == 71 || code == 73 || code == 75 || code == 77 ||
-                   code == 85 || code == 86));
-    bool storm = (code >= 95);
-
-    if (clear) {
-        draw_sun(ctx, center, r, true);
-    } else if (partly) {
-        GPoint sun_c = GPoint(center.x - r / 3, center.y - r / 3);
-        GPoint cloud_c = GPoint(center.x + r / 4, center.y + r / 4);
-        draw_sun(ctx, sun_c, (r * 2) / 3, false);
-        draw_cloud(ctx, cloud_c, (r * 2) / 3, GColorWhite);
-    } else {
-        GColor cloud_color = GColorWhite;
-        if (fog) cloud_color = GColorLightGray;
-        if (storm) cloud_color = GColorDarkGray;
-        draw_cloud(ctx, center, (r * 3) / 4, cloud_color);
-    }
-
-    if (snowy) {
-        graphics_context_set_fill_color(ctx, GColorWhite);
-        for (int i = 0; i < 5; i++) {
-            int sx = box.origin.x + ((i * 13) + (frame * 5)) % box.size.w;
-            int sy = box.origin.y + box.size.h - 12 + ((i * 4) + (frame * 3)) % 8;
-            graphics_fill_circle(ctx, GPoint(sx, sy), 2);
-        }
-    } else if (rainy && !storm) {
-        graphics_context_set_stroke_color(ctx, GColorVividCerulean);
-        graphics_context_set_stroke_width(ctx, 2);
-        for (int i = 0; i < 4; i++) {
-            int rx = box.origin.x + ((i * 15) + (frame * 7)) % box.size.w;
-            int ry = box.origin.y + box.size.h - 14 + ((i * 5) + (frame * 3)) % 10;
-            graphics_draw_line(ctx, GPoint(rx, ry), GPoint(rx - 3, ry + 8));
-        }
-    } else if (storm) {
-        graphics_context_set_stroke_color(ctx, GColorYellow);
-        graphics_context_set_stroke_width(ctx, 3);
-        GPoint p1 = GPoint(center.x, box.origin.y + box.size.h - 24);
-        GPoint p2 = GPoint(center.x - 6, box.origin.y + box.size.h - 12);
-        GPoint p3 = GPoint(center.x + 2, box.origin.y + box.size.h - 12);
-        GPoint p4 = GPoint(center.x - 4, box.origin.y + box.size.h - 2);
-        graphics_draw_line(ctx, p1, p2);
-        graphics_draw_line(ctx, p2, p3);
-        graphics_draw_line(ctx, p3, p4);
-    } else if (fog) {
-        graphics_context_set_stroke_color(ctx, GColorLightGray);
-        graphics_context_set_stroke_width(ctx, 2);
-        for (int i = 0; i < 3; i++) {
-            int fy = box.origin.y + box.size.h - 6 - (i * 6);
-            graphics_draw_line(ctx, GPoint(box.origin.x + 6, fy),
-                                GPoint(box.origin.x + box.size.w - 6, fy));
-        }
-    }
 }
 
 // ============================================================================
@@ -229,8 +179,11 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
         GTextOverflowModeFill, GTextAlignmentCenter, NULL);
 
     // --- Weather icon ---
-    GRect icon_box = GRect(bounds.size.w / 2 - 38, 92, 76, 72);
-    draw_weather_icon(ctx, icon_box, s_weather_valid ? s_weather_code : -1, s_frame);
+    if (s_weather_bitmap) {
+        GRect icon_box = GRect(bounds.size.w / 2 - 38, 90, 76, 76);
+        graphics_context_set_compositing_mode(ctx, GCompOpSet);
+        graphics_draw_bitmap_in_rect(ctx, s_weather_bitmap, icon_box);
+    }
 
     // --- Bottom info strip ---
     int bar_top = 172;
@@ -271,7 +224,6 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     s_time = *tick_time;
     s_time_valid = true;
-    s_frame++;
     layer_mark_dirty(s_canvas_layer);
 
     if (tick_time->tm_min % 30 == 0) {
@@ -308,6 +260,10 @@ static void window_load(Window *window) {
 
 static void window_unload(Window *window) {
     layer_destroy(s_canvas_layer);
+    if (s_weather_bitmap) {
+        gbitmap_destroy(s_weather_bitmap);
+        s_weather_bitmap = NULL;
+    }
 }
 
 // ============================================================================
