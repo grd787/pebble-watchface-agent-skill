@@ -163,8 +163,8 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     strftime(hour_buf, sizeof(hour_buf), clock_is_24h_style() ? "%H" : "%I", &s_time);
     strftime(min_buf, sizeof(min_buf), "%M", &s_time);
 
-    GRect hour_rect = GRect(0, 42, bounds.size.w / 2 - 6, 74);
-    GRect min_rect = GRect(bounds.size.w / 2 + 6, 42, bounds.size.w / 2 - 6, 74);
+    GRect hour_rect = GRect(0, 12, bounds.size.w / 2 - 6, 74);
+    GRect min_rect = GRect(bounds.size.w / 2 + 6, 12, bounds.size.w / 2 - 6, 74);
 
     graphics_context_set_text_color(ctx, GColorWhite);
     graphics_draw_text(ctx, hour_buf, s_time_font, hour_rect,
@@ -173,16 +173,14 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
         GTextOverflowModeFill, GTextAlignmentCenter, NULL);
 
     // --- Weather icon ---
-    // Squeezed to the gap left between the time block (bottom 116) and the
-    // bottom bar (top 157) — only ~34px tall now that both moved closer.
     if (s_weather_bitmap) {
-        GRect icon_box = GRect(bounds.size.w / 2 - 17, 119, 34, 34);
+        GRect icon_box = GRect(bounds.size.w / 2 - 38, 90, 76, 76);
         graphics_context_set_compositing_mode(ctx, GCompOpSet);
         graphics_draw_bitmap_in_rect(ctx, s_weather_bitmap, icon_box);
     }
 
     // --- Bottom info strip ---
-    int bar_top = 157;
+    int bar_top = 172;
     graphics_context_set_stroke_color(ctx, GColorDarkGray);
     graphics_context_set_stroke_width(ctx, 1);
     graphics_draw_line(ctx, GPoint(10, bar_top), GPoint(bounds.size.w - 10, bar_top));
