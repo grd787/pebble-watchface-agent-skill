@@ -1,12 +1,10 @@
 /**
  * Sense Flip Clock — Pebble Time 2 (Emery, 200x228)
  *
- * Inspired by the HTC Sense flip-clock widget: bare bold digits for
- * hour/minute (no card background), a colour weather icon bitmap in the
- * middle, and a bottom info strip with date/conditions + temperature/hi-lo.
- *
- * Time font is a placeholder system font — swap in a custom Segoe UI
- * font resource once provided (see PLACEHOLDER FONT note below).
+ * Inspired by the HTC Sense flip-clock widget: bare digits for hour/minute
+ * (no card background) set in Zegoe UI Light (a Segoe UI redistribution),
+ * a colour weather icon bitmap in the middle, and a bottom info strip with
+ * date/conditions + temperature/hi-lo.
  *
  * Battery-efficient: redraws on MINUTE_UNIT only. The weather icon bitmap
  * is only (re)loaded when new weather data arrives (~every 30 min), not
@@ -22,10 +20,6 @@
 static Window *s_window;
 static Layer *s_canvas_layer;
 
-// PLACEHOLDER FONT: Roboto Bold subset stands in for Segoe UI until a
-// custom TTF is supplied. Swap fonts_get_system_font(...) for
-// fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_SEGOE_UI_64))
-// once the font resource is added.
 static GFont s_time_font;
 static GFont s_temp_font;
 static GFont s_date_font;
@@ -246,10 +240,10 @@ static void window_load(Window *window) {
         s_time_valid = true;
     }
 
-    s_time_font = fonts_get_system_font(FONT_KEY_ROBOTO_BOLD_SUBSET_49);
-    s_temp_font = fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD);
-    s_date_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-    s_small_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+    s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ZEGOE_TIME_58));
+    s_temp_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ZEGOE_TEMP_30));
+    s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ZEGOE_DATE_20));
+    s_small_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ZEGOE_SMALL_16));
 
     s_canvas_layer = layer_create(bounds);
     layer_set_update_proc(s_canvas_layer, canvas_update_proc);
@@ -264,6 +258,10 @@ static void window_unload(Window *window) {
         gbitmap_destroy(s_weather_bitmap);
         s_weather_bitmap = NULL;
     }
+    fonts_unload_custom_font(s_time_font);
+    fonts_unload_custom_font(s_temp_font);
+    fonts_unload_custom_font(s_date_font);
+    fonts_unload_custom_font(s_small_font);
 }
 
 // ============================================================================
