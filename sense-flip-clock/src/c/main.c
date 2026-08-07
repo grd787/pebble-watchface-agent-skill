@@ -157,17 +157,20 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 
     if (!s_time_valid) return;
 
-    // --- Time: bare bold hour / minute blocks, flip-clock gap between ---
+    // --- Time: hour : minute, tight against a centered colon ---
     static char hour_buf[4];
     static char min_buf[4];
     strftime(hour_buf, sizeof(hour_buf), clock_is_24h_style() ? "%H" : "%I", &s_time);
     strftime(min_buf, sizeof(min_buf), "%M", &s_time);
 
-    GRect hour_rect = GRect(0, 12, bounds.size.w / 2 - 6, 74);
-    GRect min_rect = GRect(bounds.size.w / 2 + 6, 12, bounds.size.w / 2 - 6, 74);
+    GRect hour_rect = GRect(0, 12, 90, 74);
+    GRect colon_rect = GRect(90, 12, 20, 74);
+    GRect min_rect = GRect(110, 12, 90, 74);
 
     graphics_context_set_text_color(ctx, GColorWhite);
     graphics_draw_text(ctx, hour_buf, s_time_font, hour_rect,
+        GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+    graphics_draw_text(ctx, ":", s_time_font, colon_rect,
         GTextOverflowModeFill, GTextAlignmentCenter, NULL);
     graphics_draw_text(ctx, min_buf, s_time_font, min_rect,
         GTextOverflowModeFill, GTextAlignmentCenter, NULL);
