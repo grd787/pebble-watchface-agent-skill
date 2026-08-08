@@ -26,10 +26,10 @@
     ],
     "resources": {
       "media": [
-        { "type": "font", "name": "FONT_ZEGOE_TIME_58", "file": "fonts/ZegoeLightU.ttf", "compatibility": "2.7" },
-        { "type": "font", "name": "FONT_ZEGOE_TEMP_30", "file": "fonts/ZegoeLightU.ttf", "compatibility": "2.7" },
-        { "type": "font", "name": "FONT_ZEGOE_DATE_20", "file": "fonts/ZegoeLightU.ttf", "compatibility": "2.7" },
-        { "type": "font", "name": "FONT_ZEGOE_SMALL_16", "file": "fonts/ZegoeLightU.ttf", "compatibility": "2.7" },
+        { "type": "font", "name": "FONT_OPENSANS_TIME_58", "file": "fonts/OpenSans-Light.ttf", "compatibility": "2.7" },
+        { "type": "font", "name": "FONT_OPENSANS_TEMP_30", "file": "fonts/OpenSans-Light.ttf", "compatibility": "2.7" },
+        { "type": "font", "name": "FONT_OPENSANS_DATE_18", "file": "fonts/OpenSans-Light.ttf", "compatibility": "2.7" },
+        { "type": "font", "name": "FONT_OPENSANS_SMALL_16", "file": "fonts/OpenSans-Light.ttf", "compatibility": "2.7" },
         { "type": "bitmap", "name": "ICON_0", "file": "weather/icon_0.png" },
         { "type": "bitmap", "name": "ICON_0_NIGHT", "file": "weather/icon_0_night.png" },
         { "type": "bitmap", "name": "ICON_1", "file": "weather/icon_1.png" },
