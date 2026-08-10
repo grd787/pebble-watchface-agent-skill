@@ -1,6 +1,10 @@
 /**
  * PebbleKit JS — fetches current conditions + today's hi/lo from
- * Open-Meteo (free, no API key) and sends them to the watch.
+ * Open-Meteo (free, no API key) and sends them to the watch, and wires
+ * up the Clay settings page (Pebble app > watchface settings) for the
+ * light/dark mode toggle. Clay handles showConfiguration/webviewclosed
+ * internally — sending the saved dictionary to the watch as soon as it's
+ * instantiated.
  *
  * WEATHER_CODE is the raw WMO code (see weatherCodeToCondition below for
  * the full table) — the watch matches it directly against icon resources.
@@ -8,11 +12,15 @@
  * on-screen label text, not for icon selection.
  *
  * Requires package.json:
- *   "capabilities": ["location"],
+ *   "capabilities": ["location", "configurable"],
  *   "messageKeys": ["TEMPERATURE", "TEMP_HIGH", "TEMP_LOW", "CONDITIONS",
- *                   "WEATHER_CODE", "IS_DAY", "REQUEST_WEATHER"],
+ *                   "WEATHER_CODE", "IS_DAY", "REQUEST_WEATHER", "LIGHT_MODE"],
  *   "enableMultiJS": true
  */
+
+var Clay = require('@rebble/clay');
+var clayConfig = require('./config');
+var clay = new Clay(clayConfig);
 
 var xhrRequest = function (url, type, callback) {
   var xhr = new XMLHttpRequest();

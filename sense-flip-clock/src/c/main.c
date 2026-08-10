@@ -10,9 +10,15 @@
  * Battery-efficient: redraws on MINUTE_UNIT only. The weather icon bitmap
  * is only (re)loaded when new weather data arrives (~every 30 min), not
  * on every draw.
+ *
+ * Light/dark mode (EXPERIMENTAL): a Clay settings page toggle inverts the
+ * background/time/date/temperature colors. Weather icon bitmaps are drawn
+ * unmodified either way — the toggle never touches their pixel data.
  */
 
 #include <pebble.h>
+
+#define SETTINGS_KEY 1
 
 // ============================================================================
 // GLOBAL STATE
@@ -20,6 +26,8 @@
 
 static Window *s_window;
 static Layer *s_canvas_layer;
+
+static bool s_light_mode = false;
 
 static GFont s_time_font;
 static GFont s_temp_font;
@@ -37,6 +45,18 @@ static int s_temp_high = 0;
 static int s_temp_low = 0;
 static char s_condition[16] = "";
 static GBitmap *s_weather_bitmap = NULL;
+
+// ============================================================================
+// SETTINGS
+// ============================================================================
+
+static void load_settings(void) {
+    s_light_mode = persist_exists(SETTINGS_KEY) ? persist_read_bool(SETTINGS_KEY) : false;
+}
+
+static void save_settings(void) {
+    persist_write_bool(SETTINGS_KEY, s_light_mode);
+}
 
 // ============================================================================
 // WEATHER
@@ -123,6 +143,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     Tuple *cond_tuple = dict_find(iterator, MESSAGE_KEY_CONDITIONS);
     Tuple *code_tuple = dict_find(iterator, MESSAGE_KEY_WEATHER_CODE);
     Tuple *day_tuple = dict_find(iterator, MESSAGE_KEY_IS_DAY);
+    Tuple *light_mode_tuple = dict_find(iterator, MESSAGE_KEY_LIGHT_MODE);
 
     if (temp_tuple && cond_tuple && code_tuple) {
         s_temp = (int)temp_tuple->value->int32;
@@ -133,6 +154,13 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
         s_is_day = day_tuple ? (day_tuple->value->int32 != 0) : true;
         update_weather_bitmap();
         s_weather_valid = true;
+        layer_mark_dirty(s_canvas_layer);
+    }
+
+    if (light_mode_tuple) {
+        s_light_mode = (light_mode_tuple->value->int32 != 0);
+        save_settings();
+        window_set_background_color(s_window, s_light_mode ? GColorWhite : GColorBlack);
         layer_mark_dirty(s_canvas_layer);
     }
 }
@@ -153,7 +181,13 @@ static void outbox_failed_callback(DictionaryIterator *iterator,
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
     GRect bounds = layer_get_bounds(layer);
 
-    graphics_context_set_fill_color(ctx, GColorBlack);
+    // Weather icon bitmaps are drawn unmodified further down regardless of
+    // this — only these two text/background colors ever flip.
+    GColor bg_color = s_light_mode ? GColorWhite : GColorBlack;
+    GColor primary_color = s_light_mode ? GColorBlack : GColorWhite;
+    GColor secondary_color = s_light_mode ? GColorDarkGray : GColorLightGray;
+
+    graphics_context_set_fill_color(ctx, bg_color);
     graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
     if (!s_time_valid) return;
@@ -168,7 +202,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     GRect colon_rect = GRect(90, 12, 20, 74);
     GRect min_rect = GRect(110, 12, 90, 74);
 
-    graphics_context_set_text_color(ctx, GColorWhite);
+    graphics_context_set_text_color(ctx, primary_color);
     graphics_draw_text(ctx, hour_buf, s_time_font, hour_rect,
         GTextOverflowModeFill, GTextAlignmentCenter, NULL);
     graphics_draw_text(ctx, ":", s_time_font, colon_rect,
@@ -176,7 +210,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     graphics_draw_text(ctx, min_buf, s_time_font, min_rect,
         GTextOverflowModeFill, GTextAlignmentCenter, NULL);
 
-    // --- Weather icon ---
+    // --- Weather icon (unaffected by light/dark mode) ---
     if (s_weather_bitmap) {
         GRect icon_box = GRect(bounds.size.w / 2 - 38, 90, 76, 76);
         graphics_context_set_compositing_mode(ctx, GCompOpSet);
@@ -188,31 +222,31 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     // widths (not Segoe UI's) — worst-case date strings need ~101px at
     // 18pt, worst-case hi/lo pairs need ~70px at 16pt.
     int bar_top = 172;
-    graphics_context_set_stroke_color(ctx, GColorDarkGray);
+    graphics_context_set_stroke_color(ctx, GColorDarkGray); // reads fine on black or white, no need to flip
     graphics_context_set_stroke_width(ctx, 1);
     graphics_draw_line(ctx, GPoint(6, bar_top), GPoint(bounds.size.w - 6, bar_top));
 
     static char date_buf[16];
     strftime(date_buf, sizeof(date_buf), "%a, %b %d", &s_time);
-    graphics_context_set_text_color(ctx, GColorWhite);
+    graphics_context_set_text_color(ctx, primary_color);
     graphics_draw_text(ctx, date_buf, s_date_font, GRect(6, bar_top + 6, 110, 22),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
     const char *cond = s_weather_valid ? s_condition : "Loading...";
-    graphics_context_set_text_color(ctx, GColorLightGray);
+    graphics_context_set_text_color(ctx, secondary_color);
     graphics_draw_text(ctx, cond, s_small_font, GRect(6, bar_top + 28, 110, 20),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
     if (s_weather_valid) {
         static char temp_buf[8];
         snprintf(temp_buf, sizeof(temp_buf), "%d°", s_temp);
-        graphics_context_set_text_color(ctx, GColorWhite);
+        graphics_context_set_text_color(ctx, primary_color);
         graphics_draw_text(ctx, temp_buf, s_temp_font, GRect(120, bar_top, 74, 30),
             GTextOverflowModeFill, GTextAlignmentRight, NULL);
 
         static char hilo_buf[16];
         snprintf(hilo_buf, sizeof(hilo_buf), "%d°/%d°", s_temp_high, s_temp_low);
-        graphics_context_set_text_color(ctx, GColorLightGray);
+        graphics_context_set_text_color(ctx, secondary_color);
         graphics_draw_text(ctx, hilo_buf, s_small_font, GRect(120, bar_top + 30, 74, 20),
             GTextOverflowModeFill, GTextAlignmentRight, NULL);
     }
@@ -276,8 +310,10 @@ static void window_unload(Window *window) {
 // ============================================================================
 
 static void init(void) {
+    load_settings();
+
     s_window = window_create();
-    window_set_background_color(s_window, GColorBlack);
+    window_set_background_color(s_window, s_light_mode ? GColorWhite : GColorBlack);
     window_set_window_handlers(s_window, (WindowHandlers) {
         .load = window_load,
         .unload = window_unload

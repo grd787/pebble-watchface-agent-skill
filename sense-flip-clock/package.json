@@ -4,7 +4,9 @@
   "version": "0.6.0",
   "keywords": ["pebble-app"],
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@rebble/clay": "^1.0.8"
+  },
   "pebble": {
     "displayName": "Sense Flip Clock",
     "uuid": "1e628eb1-3a86-4efd-8cfd-af0c85e3feb3",
@@ -14,7 +16,7 @@
     "watchapp": {
       "watchface": true
     },
-    "capabilities": ["location"],
+    "capabilities": ["location", "configurable"],
     "messageKeys": [
       "TEMPERATURE",
       "TEMP_HIGH",
@@ -22,7 +24,8 @@
       "CONDITIONS",
       "WEATHER_CODE",
       "IS_DAY",
-      "REQUEST_WEATHER"
+      "REQUEST_WEATHER",
+      "LIGHT_MODE"
     ],
     "resources": {
       "media": [
