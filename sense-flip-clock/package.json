@@ -29,7 +29,7 @@
     ],
     "resources": {
       "media": [
-        { "type": "font", "name": "FONT_OPENSANS_TIME_58", "file": "fonts/OpenSans-Light.ttf", "compatibility": "2.7" },
+        { "type": "font", "name": "FONT_OPENSANS_TIME_70", "file": "fonts/OpenSans-Light.ttf", "compatibility": "2.7" },
         { "type": "font", "name": "FONT_OPENSANS_REG_TEMP_32", "file": "fonts/OpenSans-Regular.ttf", "compatibility": "2.7" },
         { "type": "font", "name": "FONT_OPENSANS_REG_DATE_19", "file": "fonts/OpenSans-Regular.ttf", "compatibility": "2.7" },
         { "type": "font", "name": "FONT_OPENSANS_REG_SMALL_16", "file": "fonts/OpenSans-Regular.ttf", "compatibility": "2.7" },

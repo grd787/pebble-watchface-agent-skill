@@ -222,6 +222,11 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     if (!s_time_valid) return;
 
     // --- Time: hour : minute, tight against a centered colon ---
+    // 70pt Light — bumped up from 58pt since the two-digit width (measured
+    // against Open Sans Light's real glyph widths) still leaves ~10px of
+    // margin in the 90px-wide box at this size. Not further increased
+    // because much beyond ~78pt starts eating that width margin, and
+    // 74-78pt is where it gets genuinely tight.
     static char hour_buf[4];
     static char min_buf[4];
     strftime(hour_buf, sizeof(hour_buf), clock_is_24h_style() ? "%H" : "%I", &s_time);
@@ -313,7 +318,7 @@ static void window_load(Window *window) {
         s_time_valid = true;
     }
 
-    s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_TIME_58));
+    s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_TIME_70));
     load_mode_fonts(); // s_light_mode is already set from load_settings() in init()
 
     s_canvas_layer = layer_create(bounds);
