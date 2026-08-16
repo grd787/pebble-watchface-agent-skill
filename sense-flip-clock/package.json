@@ -1,7 +1,7 @@
 {
   "name": "sense-flip-clock",
   "author": "Greg Dragonetti",
-  "version": "0.8.8",
+  "version": "0.10.0",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {
