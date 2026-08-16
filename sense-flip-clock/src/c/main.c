@@ -11,9 +11,13 @@
  * is only (re)loaded when new weather data arrives (~every 30 min), not
  * on every draw.
  *
- * Light/dark mode (EXPERIMENTAL): a Clay settings page toggle inverts the
- * background/time/date/temperature colors. Weather icon bitmaps are drawn
- * unmodified either way — the toggle never touches their pixel data.
+ * Light/dark mode: a Clay settings page toggle inverts the background/
+ * time/date/temperature colors. Bottom-bar text also switches from
+ * Regular to SemiBold weight in light mode — black-on-white reads
+ * visually thinner than white-on-black at equal weight, so light mode
+ * needs a heavier font to look equally legible (see load_mode_fonts()).
+ * Weather icon bitmaps are drawn unmodified in both modes — the toggle
+ * never touches their pixel data.
  */
 
 #include <pebble.h>
@@ -56,6 +60,30 @@ static void load_settings(void) {
 
 static void save_settings(void) {
     persist_write_bool(SETTINGS_KEY, s_light_mode);
+}
+
+// (Re)loads the bottom-bar fonts for the current mode. Dark mode uses
+// Regular — fine on black. Light mode uses SemiBold: black-on-white reads
+// visually thinner than white-on-black at the *same* weight (an optical
+// effect of the light background, not a rendering bug), so light mode
+// needs a heavier weight to look equally legible. Date drops 19->18pt in
+// light mode to keep a safe margin in the same-width box — the heavier
+// weight more than makes up for 1pt less size. Time stays Light in both
+// modes; nothing here touches the weather icon bitmaps.
+static void load_mode_fonts(void) {
+    if (s_temp_font) fonts_unload_custom_font(s_temp_font);
+    if (s_date_font) fonts_unload_custom_font(s_date_font);
+    if (s_small_font) fonts_unload_custom_font(s_small_font);
+
+    if (s_light_mode) {
+        s_temp_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_SB_TEMP_32));
+        s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_SB_DATE_18));
+        s_small_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_SB_SMALL_16));
+    } else {
+        s_temp_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_REG_TEMP_32));
+        s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_REG_DATE_19));
+        s_small_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_REG_SMALL_16));
+    }
 }
 
 // ============================================================================
@@ -161,6 +189,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
         s_light_mode = (light_mode_tuple->value->int32 != 0);
         save_settings();
         window_set_background_color(s_window, s_light_mode ? GColorWhite : GColorBlack);
+        load_mode_fonts();
         layer_mark_dirty(s_canvas_layer);
     }
 }
@@ -218,12 +247,12 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
     }
 
     // --- Bottom info strip ---
-    // Date/temp are Open Sans Regular now (Light read as too thin at this
-    // size), with date bumped 18->19pt and temp 30->32pt. Column widths
-    // re-measured against Regular's actual glyph widths: worst-case date
-    // strings need ~109px at 19pt, worst-case hi/lo pairs need ~70.5px
-    // at 16pt — the 56px bar height doesn't leave room to grow date much
-    // further without shrinking temp/hi-lo (they already use most of it).
+    // s_date_font/s_temp_font/s_small_font point at whichever weight
+    // load_mode_fonts() loaded for the current mode (Regular in dark,
+    // SemiBold in light) — box sizes below are shared by both, chosen to
+    // safely fit each mode's worst-case string widths. The 56px bar
+    // height doesn't leave room to grow date much further without
+    // shrinking temp/hi-lo (they already use most of it).
     int bar_top = 172;
     graphics_context_set_stroke_color(ctx, GColorDarkGray); // reads fine on black or white, no need to flip
     graphics_context_set_stroke_width(ctx, 1);
@@ -285,9 +314,7 @@ static void window_load(Window *window) {
     }
 
     s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_TIME_58));
-    s_temp_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_REG_TEMP_32));
-    s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_REG_DATE_19));
-    s_small_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OPENSANS_REG_SMALL_16));
+    load_mode_fonts(); // s_light_mode is already set from load_settings() in init()
 
     s_canvas_layer = layer_create(bounds);
     layer_set_update_proc(s_canvas_layer, canvas_update_proc);
