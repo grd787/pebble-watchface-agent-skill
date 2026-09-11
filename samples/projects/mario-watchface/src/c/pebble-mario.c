@@ -113,6 +113,7 @@ static char digits[10][15] = {{1,1,1,1,0,1,1,0,1,1,0,1,1,1,1},{0,0,1,0,0,1,0,0,1
 
 #define WEATHER_MAX_AGE 60*60*3
 #define WEATHER_UPDATE_INTERVAL 60*60*1
+#define WEATHER_ROW_HEIGHT 26
 
 #define MSG_SHOW_NO_PHONE 0
 #define MSG_SHOW_BATTERY 1
@@ -281,17 +282,24 @@ void ground_update_callback(Layer *layer, GContext *ctx)
   graphics_context_set_compositing_mode(ctx, GCompOpAssign);
   graphics_draw_bitmap_in_rect(ctx, background_day_bmp, layer_bounds);
 
+  int date_gap_1 = 48;
+  int date_gap_2 = 42;
+  int date_width_estimate = date_gap_1 + date_gap_2 + 22; // ~width of "DD" in the third segment
+
+  // Center the date in whatever's left between the weather box and the
+  // battery box, rather than a hardcoded x -- keeps it centered even if
+  // those boxes get resized again later.
+  int zone_left = phone_battery_rect.origin.x + phone_battery_rect.size.w + 6;
+  int zone_right = battery_rect.origin.x - 6;
+
   layer_bounds.origin.y = 5;
-  layer_bounds.origin.x = 31+28;
+  layer_bounds.origin.x = zone_left + ((zone_right - zone_left) - date_width_estimate) / 2;
 
   graphics_context_set_text_color(ctx, GColorWhite);
 
   time_t t;
   time(&t);
   struct tm * tick_time = localtime(&t);
-
-  int date_gap_1 = 48;
-  int date_gap_2 = 42;
 
   // Compress spaces
   strftime(date_text, sizeof(date_text), "%a,", tick_time);
@@ -346,14 +354,17 @@ void phone_battery_update_callback(Layer *layer, GContext *ctx)
   if (config_show_weather && (!config_show_phone_battery || left_info_mode == 0))
   {
     GRect image_rect = gbitmap_get_bounds(weather_icon_bmp);
-    image_rect.origin.y += (13-image_rect.size.h)/2;
+    image_rect.origin.y += (WEATHER_ROW_HEIGHT-image_rect.size.h)/2;
     graphics_draw_bitmap_in_rect(ctx, weather_icon_bmp, image_rect);
 
     if (weather_temperature > -100)
     {
-      int temp_x = image_rect.size.w + 4; //13;
-      if (temp_x > 13) temp_x = 13;
-      int temp_y = 4;
+      // Temperature digits are hand-drawn from the 3x5 "digits" bitmap
+      // table, two device-pixels per table-pixel so they stay legible
+      // next to the bigger (2x) weather icon.
+      int temp_x = image_rect.size.w + 8; //26;
+      if (temp_x > 26) temp_x = 26;
+      int temp_y = 8;
 
       int digit1 = (weather_temperature / 10) % 10;
       if (digit1 < 0) digit1 *= -1;
@@ -366,16 +377,16 @@ void phone_battery_update_callback(Layer *layer, GContext *ctx)
         for (dx = 0; dx < 3; dx++)
         {
           if (digits[digit1][dx+dy*3])
-            graphics_draw_pixel(ctx, GPoint(temp_x+dx, temp_y+dy));
+            graphics_fill_rect(ctx, GRect(temp_x+dx*2, temp_y+dy*2, 2, 2), 0, GCornerNone);
           if (digits[digit2][dx+dy*3])
-            graphics_draw_pixel(ctx, GPoint(temp_x+dx+4, temp_y+dy));
+            graphics_fill_rect(ctx, GRect(temp_x+dx*2+8, temp_y+dy*2, 2, 2), 0, GCornerNone);
         }
       }
-      graphics_draw_pixel(ctx, GPoint(temp_x+4+4, temp_y-2));
+      graphics_fill_rect(ctx, GRect(temp_x+16, temp_y-4, 2, 2), 0, GCornerNone);
       if (weather_temperature < 0)
       {
-        graphics_draw_pixel(ctx, GPoint(temp_x-2, temp_y+2));
-        graphics_draw_pixel(ctx, GPoint(temp_x-3, temp_y+2));
+        graphics_fill_rect(ctx, GRect(temp_x-4, temp_y+4, 2, 2), 0, GCornerNone);
+        graphics_fill_rect(ctx, GRect(temp_x-6, temp_y+4, 2, 2), 0, GCornerNone);
       }
     }
   }
@@ -731,7 +742,9 @@ void handle_init()
   blocks_down_rect = GRect(blocks_x, blocks_y, BLOCK_SIZE*2, BLOCK_SIZE + 4);
 
   background_rect = GRect(0, 0, screen_size_x, screen_size_y);
-  phone_battery_rect = GRect(3, 3, 24, 13);
+  // Wide/tall enough for the 2x weather icon plus its temperature digits;
+  // still well clear of the blocks, which start at blocks_y (34).
+  phone_battery_rect = GRect(3, 3, 48, WEATHER_ROW_HEIGHT);
   battery_rect = GRect(screen_size_x - 22 - 3, 5, 22, 9);
 
   pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_GAMEGIRL_34));
