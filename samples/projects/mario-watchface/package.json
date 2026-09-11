@@ -34,7 +34,8 @@
                     "name": "IMAGE_BOWSER_JUMP",
                     "targetPlatforms": [
                         "basalt",
-                        "chalk"
+                        "chalk",
+                        "emery"
                     ],
                     "type": "bitmap"
                 },
@@ -43,7 +44,8 @@
                     "name": "IMAGE_BOWSER_NORMAL",
                     "targetPlatforms": [
                         "basalt",
-                        "chalk"
+                        "chalk",
+                        "emery"
                     ],
                     "type": "bitmap"
                 },
@@ -58,7 +60,8 @@
                     "name": "IMAGE_LUIGI_JUMP",
                     "targetPlatforms": [
                         "basalt",
-                        "chalk"
+                        "chalk",
+                        "emery"
                     ],
                     "type": "bitmap"
                 },
@@ -68,7 +71,8 @@
                     "storageFormat": "png",
                     "targetPlatforms": [
                         "basalt",
-                        "chalk"
+                        "chalk",
+                        "emery"
                     ],
                     "type": "bitmap"
                 },
@@ -79,7 +83,8 @@
                         "aplite",
                         "basalt",
                         "chalk",
-                        "diorite"
+                        "diorite",
+                        "emery"
                     ],
                     "type": "bitmap"
                 },
@@ -159,7 +164,8 @@
                     "targetPlatforms": [
                         "aplite",
                         "basalt",
-                        "chalk"
+                        "chalk",
+                        "emery"
                     ],
                     "type": "bitmap"
                 },
@@ -180,7 +186,8 @@
                     "targetPlatforms": [
                         "aplite",
                         "basalt",
-                        "chalk"
+                        "chalk",
+                        "emery"
                     ],
                     "type": "bitmap"
                 },
@@ -256,7 +263,8 @@
             "aplite",
             "basalt",
             "chalk",
-            "diorite"
+            "diorite",
+            "emery"
         ],
         "uuid": "43caa750-2896-4f46-94dc-1adbd4bc1ff3",
         "watchapp": {

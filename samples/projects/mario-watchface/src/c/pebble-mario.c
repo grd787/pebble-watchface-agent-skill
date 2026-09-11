@@ -293,12 +293,15 @@ void ground_update_callback(Layer *layer, GContext *ctx)
   graphics_context_set_compositing_mode(ctx, GCompOpAssign);
   graphics_draw_bitmap_in_rect(ctx, background_day_bmp, layer_bounds);
 
-#if !PBL_PLATFORM_CHALK
+#if PBL_PLATFORM_CHALK
+  layer_bounds.origin.y = 13;
+  layer_bounds.origin.x = 31+18;
+#elif PBL_PLATFORM_EMERY
+  layer_bounds.origin.y = 5;
+  layer_bounds.origin.x = 31+28;
+#else
   layer_bounds.origin.y = 5;
   layer_bounds.origin.x = 31;
-#else
-  layer_bounds.origin.y = 13;
-  layer_bounds.origin.x = 31+18;  
 #endif
 
   #if PBL_COLOR  
@@ -742,16 +745,21 @@ void handle_init()
   app_message_open(128, 64);
   window = window_create();
 
-#if !PBL_PLATFORM_CHALK
-  int offset_x = 0;
-  int offset_y = 0;
-  int screen_size_x = 144;
-  int screen_size_y = 168;
-#else
+#if PBL_PLATFORM_CHALK
   int offset_x = 18;
   int offset_y = 6;
   int screen_size_x = 180;
   int screen_size_y = 180;
+#elif PBL_PLATFORM_EMERY
+  int offset_x = 28;
+  int offset_y = 55;
+  int screen_size_x = 200;
+  int screen_size_y = 228;
+#else
+  int offset_x = 0;
+  int offset_y = 0;
+  int screen_size_x = 144;
+  int screen_size_y = 168;
 #endif
 
   blocks_up_rect = GRect(22+offset_x, -10, BLOCK_SIZE*2, BLOCK_SIZE + 4);
@@ -766,12 +774,15 @@ void handle_init()
 #endif
   
   background_rect = GRect(0, 0, screen_size_x, screen_size_y);
-#if !PBL_PLATFORM_CHALK
-  phone_battery_rect = GRect(3, 3, 24, 13);
-  battery_rect = GRect(119, 5, 22, 9);
-#else
+#if PBL_PLATFORM_CHALK
   phone_battery_rect = GRect(3, 3+80, 24, 13);
   battery_rect = GRect(119+36, 5+80, 22, 9);
+#elif PBL_PLATFORM_EMERY
+  phone_battery_rect = GRect(3, 3, 24, 13);
+  battery_rect = GRect(screen_size_x - 22 - 3, 5, 22, 9);
+#else
+  phone_battery_rect = GRect(3, 3, 24, 13);
+  battery_rect = GRect(119, 5, 22, 9);
 #endif
   pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_GAMEGIRL_24));
   //pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_EMULOGIC_24));
