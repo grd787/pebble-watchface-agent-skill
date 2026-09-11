@@ -709,7 +709,6 @@ void handle_init()
   app_message_open(128, 64);
   window = window_create();
 
-  int offset_x = 28;
   int screen_size_x = 200;
   int screen_size_y = 228;
 
@@ -720,10 +719,16 @@ void handle_init()
   int mario_up_y = 80;
   int mario_down_y = 127;
 
-  blocks_up_rect = GRect(22+offset_x, -10, BLOCK_SIZE*2, BLOCK_SIZE + 4);
-  mario_down_rect = GRect(32 + offset_x, mario_down_y, 80, 80);
-  mario_up_rect = GRect(32 + offset_x, mario_up_y, 80, 80);
-  blocks_down_rect = GRect(22 + offset_x, blocks_y, BLOCK_SIZE*2, BLOCK_SIZE + 4);
+  // Each box is centered independently -- they're different widths
+  // (140 for the two blocks, 80 for Mario), so a single shared offset
+  // can't center both at once.
+  int blocks_x = (screen_size_x - BLOCK_SIZE*2) / 2;
+  int mario_x = (screen_size_x - 80) / 2;
+
+  blocks_up_rect = GRect(blocks_x, -10, BLOCK_SIZE*2, BLOCK_SIZE + 4);
+  mario_down_rect = GRect(mario_x, mario_down_y, 80, 80);
+  mario_up_rect = GRect(mario_x, mario_up_y, 80, 80);
+  blocks_down_rect = GRect(blocks_x, blocks_y, BLOCK_SIZE*2, BLOCK_SIZE + 4);
 
   background_rect = GRect(0, 0, screen_size_x, screen_size_y);
   phone_battery_rect = GRect(3, 3, 24, 13);
