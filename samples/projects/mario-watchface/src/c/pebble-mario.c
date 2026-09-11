@@ -99,7 +99,11 @@ static char digits[10][15] = {{1,1,1,1,0,1,1,0,1,1,0,1,1,1,1},{0,0,1,0,0,1,0,0,1
                             {1,1,1,1,0,0,1,1,1,1,0,1,1,1,1},{1,1,1,0,0,1,0,0,1,0,0,1,0,0,1},
                             {1,1,1,1,0,1,1,1,1,1,0,1,1,1,1},{1,1,1,1,0,1,1,1,1,0,0,1,1,1,1}};
 
+#if PBL_PLATFORM_EMERY
+#define BLOCK_SIZE 70
+#else
 #define BLOCK_SIZE 50
+#endif
 #define BLOCK_SPACING 0
 #ifdef DEMO_SLOW
 #define MARIO_JUMP_DURATION 5000
@@ -191,60 +195,74 @@ void time_update_callback(Layer *layer, GContext *ctx)
   m2[0] = minute_text_visible[1];
   h1[1] = h2[1] = m1[1] = m2[1] = 0;
   layer_bounds.origin.y += 1;
+#if PBL_PLATFORM_EMERY
+  int one_fix = 3;
+  int gap_digit = 28;   // gap between the two digits of an hour/minute pair
+  int gap_colon = 42;   // gap across the ':' between hour and minute
+  int black_dx = 6;
+  int black_dy = 1;
+  int shadow_dx = 4;
+#else
   int one_fix = 2;
-#if PBL_COLOR  
+  int gap_digit = 20;
+  int gap_colon = 30;
+  int black_dx = 4;
+  int black_dy = 1;
+  int shadow_dx = 3;
+#endif
+#if PBL_COLOR
   GRect origin = layer_bounds;
   graphics_context_set_text_color(ctx, GColorBlack);
-  layer_bounds.origin.x += 4;
-  layer_bounds.origin.y += 1;
+  layer_bounds.origin.x += black_dx;
+  layer_bounds.origin.y += black_dy;
   if (h1[0] == '1') layer_bounds.origin.x -= one_fix;
   graphics_draw_text(ctx, h1, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (h1[0] == '1') layer_bounds.origin.x += one_fix;
-  layer_bounds.origin.x += 20;
+  layer_bounds.origin.x += gap_digit;
   if (h2[0] == '1') layer_bounds.origin.x += one_fix;
   graphics_draw_text(ctx, h2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (h2[0] == '1') layer_bounds.origin.x -= one_fix;
-  layer_bounds.origin.x += 30;
+  layer_bounds.origin.x += gap_colon;
   if (m1[0] == '1') layer_bounds.origin.x -= one_fix;
   graphics_draw_text(ctx, m1, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (m1[0] == '1') layer_bounds.origin.x += one_fix;
-  layer_bounds.origin.x += 20;
+  layer_bounds.origin.x += gap_digit;
   if (m2[0] == '1') layer_bounds.origin.x += one_fix;
   graphics_draw_text(ctx, m2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
   layer_bounds = origin;
   graphics_context_set_text_color(ctx, GColorBulgarianRose);
-  layer_bounds.origin.x += 3;
+  layer_bounds.origin.x += shadow_dx;
   if (h1[0] == '1') layer_bounds.origin.x -= one_fix;
   graphics_draw_text(ctx, h1, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (h1[0] == '1') layer_bounds.origin.x += one_fix;
-  layer_bounds.origin.x += 20;
+  layer_bounds.origin.x += gap_digit;
   if (h2[0] == '1') layer_bounds.origin.x += one_fix;
   graphics_draw_text(ctx, h2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (h2[0] == '1') layer_bounds.origin.x -= one_fix;
-  layer_bounds.origin.x += 30;
+  layer_bounds.origin.x += gap_colon;
   if (m1[0] == '1') layer_bounds.origin.x -= one_fix;
   graphics_draw_text(ctx, m1, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (m1[0] == '1') layer_bounds.origin.x += one_fix;
-  layer_bounds.origin.x += 20;
+  layer_bounds.origin.x += gap_digit;
   if (m2[0] == '1') layer_bounds.origin.x += one_fix;
   graphics_draw_text(ctx, m2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 #else
   graphics_context_set_text_color(ctx, GColorBlack);
-  layer_bounds.origin.x += 3;
+  layer_bounds.origin.x += shadow_dx;
   if (h1[0] == '1') layer_bounds.origin.x -= one_fix;
   graphics_draw_text(ctx, h1, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (h1[0] == '1') layer_bounds.origin.x += one_fix;
-  layer_bounds.origin.x += 20;
+  layer_bounds.origin.x += gap_digit;
   if (h2[0] == '1') layer_bounds.origin.x += one_fix;
   graphics_draw_text(ctx, h2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (h2[0] == '1') layer_bounds.origin.x -= one_fix;
-  layer_bounds.origin.x += 30;
+  layer_bounds.origin.x += gap_colon;
   if (m1[0] == '1') layer_bounds.origin.x -= one_fix;
   graphics_draw_text(ctx, m1, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   if (m1[0] == '1') layer_bounds.origin.x += one_fix;
-  layer_bounds.origin.x += 20;
-  if (m2[0] == '1') layer_bounds.origin.x += 3;
+  layer_bounds.origin.x += gap_digit;
+  if (m2[0] == '1') layer_bounds.origin.x += shadow_dx;
   graphics_draw_text(ctx, m2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 #endif
 }
@@ -314,17 +332,25 @@ void ground_update_callback(Layer *layer, GContext *ctx)
   time(&t); 
   struct tm * tick_time = localtime(&t);
   
+#if PBL_PLATFORM_EMERY
+  int date_gap_1 = 48;
+  int date_gap_2 = 42;
+#else
+  int date_gap_1 = 34;
+  int date_gap_2 = 30;
+#endif
+
   // Compress spaces
   strftime(date_text, sizeof(date_text), "%a,", tick_time);
   to_upcase(date_text);
   graphics_draw_text(ctx, date_text, pixel_font_small, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
-  layer_bounds.origin.x += 34;
+  layer_bounds.origin.x += date_gap_1;
   strftime(date_text, sizeof(date_text), "%b", tick_time);
   to_upcase(date_text);
   graphics_draw_text(ctx, date_text, pixel_font_small, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
-  layer_bounds.origin.x += 30;
+  layer_bounds.origin.x += date_gap_2;
   strftime(date_text, sizeof(date_text), "%d", tick_time);
   to_upcase(date_text);
   graphics_draw_text(ctx, date_text, pixel_font_small, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
@@ -784,9 +810,14 @@ void handle_init()
   phone_battery_rect = GRect(3, 3, 24, 13);
   battery_rect = GRect(119, 5, 22, 9);
 #endif
+#if PBL_PLATFORM_EMERY
+  pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_GAMEGIRL_34));
+  pixel_font_small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_EMULOGIC_11));
+#else
   pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_GAMEGIRL_24));
   //pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_EMULOGIC_24));
   pixel_font_small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_EMULOGIC_8));
+#endif
   
   time_up_rect = GRect(0, -15, BLOCK_SIZE*2, BLOCK_SIZE);
   time_normal_rect = GRect(0, 5 + 4 + 5, BLOCK_SIZE*2, BLOCK_SIZE);

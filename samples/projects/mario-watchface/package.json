@@ -246,6 +246,15 @@
                     "type": "font"
                 },
                 {
+                    "characterRegex": "[,0-9A-Z]",
+                    "file": "fonts/emulogic.ttf",
+                    "name": "FONT_EMULOGIC_11",
+                    "targetPlatforms": [
+                        "emery"
+                    ],
+                    "type": "font"
+                },
+                {
                     "file": "images/mario_block_48_bw.png",
                     "name": "IMAGE_BLOCK",
                     "type": "bitmap"
@@ -254,6 +263,15 @@
                     "characterRegex": "[0-9]",
                     "file": "fonts/Gamegirl.ttf",
                     "name": "FONT_GAMEGIRL_24",
+                    "type": "font"
+                },
+                {
+                    "characterRegex": "[0-9]",
+                    "file": "fonts/Gamegirl.ttf",
+                    "name": "FONT_GAMEGIRL_34",
+                    "targetPlatforms": [
+                        "emery"
+                    ],
                     "type": "font"
                 }
             ]
