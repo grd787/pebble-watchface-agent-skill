@@ -292,7 +292,14 @@ void ground_update_callback(Layer *layer, GContext *ctx)
   int zone_left = phone_battery_rect.origin.x + phone_battery_rect.size.w + 6;
   int zone_right = battery_rect.origin.x - 6;
 
-  layer_bounds.origin.y = 5;
+  // Vertically align the date's ink with the middle of the weather icon.
+  // FONT_EMULOGIC_11's glyphs sit ~3px below the box we hand graphics_draw_text
+  // and are ~10px tall, so this centers that ink band on the icon's midline
+  // (phone_battery_rect.y + WEATHER_ROW_HEIGHT/2).
+  int date_top_padding = 3;
+  int date_ink_height = 10;
+  layer_bounds.origin.y = phone_battery_rect.origin.y
+      + (WEATHER_ROW_HEIGHT - date_ink_height) / 2 - date_top_padding;
   layer_bounds.origin.x = zone_left + ((zone_right - zone_left) - date_width_estimate) / 2;
 
   graphics_context_set_text_color(ctx, GColorWhite);
