@@ -18,6 +18,8 @@
 // You may contact the author of the original watchface at denis@ddenis.info
 // Author of the color mod for Pebble Time: clusterrr@clusterrr.com
 //
+// Pebble Time 2 (emery) only build.
+//
 
 #include <pebble.h>
 #include <time.h>
@@ -99,11 +101,7 @@ static char digits[10][15] = {{1,1,1,1,0,1,1,0,1,1,0,1,1,1,1},{0,0,1,0,0,1,0,0,1
                             {1,1,1,1,0,0,1,1,1,1,0,1,1,1,1},{1,1,1,0,0,1,0,0,1,0,0,1,0,0,1},
                             {1,1,1,1,0,1,1,1,1,1,0,1,1,1,1},{1,1,1,1,0,1,1,1,1,0,0,1,1,1,1}};
 
-#if PBL_PLATFORM_EMERY
 #define BLOCK_SIZE 70
-#else
-#define BLOCK_SIZE 50
-#endif
 #define BLOCK_SPACING 0
 #ifdef DEMO_SLOW
 #define MARIO_JUMP_DURATION 5000
@@ -113,7 +111,7 @@ static char digits[10][15] = {{1,1,1,1,0,1,1,0,1,1,0,1,1,1,1},{0,0,1,0,0,1,0,0,1
 #define CLOCK_ANIMATION_DURATION 150
 #endif
 #define GROUND_HEIGHT 26
-  
+
 #define WEATHER_MAX_AGE 60*60*3
 #define WEATHER_UPDATE_INTERVAL 60*60*1
 
@@ -178,7 +176,7 @@ static void request_all_on_connect(void* data)
 
 static void request_all_on_start(void* data)
 {
-  tick_timer_service_subscribe(MARIO_TIME_UNIT, handle_tick);  
+  tick_timer_service_subscribe(MARIO_TIME_UNIT, handle_tick);
   request_all();
 }
 
@@ -195,22 +193,13 @@ void time_update_callback(Layer *layer, GContext *ctx)
   m2[0] = minute_text_visible[1];
   h1[1] = h2[1] = m1[1] = m2[1] = 0;
   layer_bounds.origin.y += 1;
-#if PBL_PLATFORM_EMERY
   int one_fix = 3;
   int gap_digit = 28;   // gap between the two digits of an hour/minute pair
   int gap_colon = 42;   // gap across the ':' between hour and minute
   int black_dx = 6;
   int black_dy = 1;
   int shadow_dx = 4;
-#else
-  int one_fix = 2;
-  int gap_digit = 20;
-  int gap_colon = 30;
-  int black_dx = 4;
-  int black_dy = 1;
-  int shadow_dx = 3;
-#endif
-#if PBL_COLOR
+
   GRect origin = layer_bounds;
   graphics_context_set_text_color(ctx, GColorBlack);
   layer_bounds.origin.x += black_dx;
@@ -247,24 +236,6 @@ void time_update_callback(Layer *layer, GContext *ctx)
   layer_bounds.origin.x += gap_digit;
   if (m2[0] == '1') layer_bounds.origin.x += one_fix;
   graphics_draw_text(ctx, m2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
-#else
-  graphics_context_set_text_color(ctx, GColorBlack);
-  layer_bounds.origin.x += shadow_dx;
-  if (h1[0] == '1') layer_bounds.origin.x -= one_fix;
-  graphics_draw_text(ctx, h1, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
-  if (h1[0] == '1') layer_bounds.origin.x += one_fix;
-  layer_bounds.origin.x += gap_digit;
-  if (h2[0] == '1') layer_bounds.origin.x += one_fix;
-  graphics_draw_text(ctx, h2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
-  if (h2[0] == '1') layer_bounds.origin.x -= one_fix;
-  layer_bounds.origin.x += gap_colon;
-  if (m1[0] == '1') layer_bounds.origin.x -= one_fix;
-  graphics_draw_text(ctx, m1, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
-  if (m1[0] == '1') layer_bounds.origin.x += one_fix;
-  layer_bounds.origin.x += gap_digit;
-  if (m2[0] == '1') layer_bounds.origin.x += shadow_dx;
-  graphics_draw_text(ctx, m2, pixel_font, layer_bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
-#endif
 }
 
 void blocks_update_callback(Layer *layer, GContext *ctx)
@@ -311,34 +282,17 @@ void ground_update_callback(Layer *layer, GContext *ctx)
   graphics_context_set_compositing_mode(ctx, GCompOpAssign);
   graphics_draw_bitmap_in_rect(ctx, background_day_bmp, layer_bounds);
 
-#if PBL_PLATFORM_CHALK
-  layer_bounds.origin.y = 13;
-  layer_bounds.origin.x = 31+18;
-#elif PBL_PLATFORM_EMERY
   layer_bounds.origin.y = 5;
   layer_bounds.origin.x = 31+28;
-#else
-  layer_bounds.origin.y = 5;
-  layer_bounds.origin.x = 31;
-#endif
 
-  #if PBL_COLOR  
   graphics_context_set_text_color(ctx, GColorWhite);
-#else
-  graphics_context_set_text_color(ctx, GColorBlack);
-#endif
 
   time_t t;
-  time(&t); 
+  time(&t);
   struct tm * tick_time = localtime(&t);
-  
-#if PBL_PLATFORM_EMERY
+
   int date_gap_1 = 48;
   int date_gap_2 = 42;
-#else
-  int date_gap_1 = 34;
-  int date_gap_2 = 30;
-#endif
 
   // Compress spaces
   strftime(date_text, sizeof(date_text), "%a,", tick_time);
@@ -358,7 +312,7 @@ void ground_update_callback(Layer *layer, GContext *ctx)
 
 void bluetooth_connection_callback(bool connected)
 {
-  if (config_vibe && !connected) {  
+  if (config_vibe && !connected) {
     static const uint32_t segments[] = { 100, 200, 100, 200, 100 };
     VibePattern pat = {
       .durations = segments,
@@ -366,7 +320,7 @@ void bluetooth_connection_callback(bool connected)
     };
     vibes_enqueue_custom_pattern(pat);
   }
-  
+
   if (connected)
     app_timer_register(5000, request_all_on_connect, NULL);
   else phone_battery_level = -1;
@@ -379,13 +333,8 @@ void phone_battery_update_callback(Layer *layer, GContext *ctx)
   phone_battery_level = 8;
 #endif
   graphics_context_set_compositing_mode(ctx, GCompOpSet);
-#if PBL_COLOR
   graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_context_set_stroke_color(ctx, GColorWhite);
-#else
-  graphics_context_set_fill_color(ctx, GColorBlack);
-  graphics_context_set_stroke_color(ctx, GColorBlack);
-#endif
 
   if (config_show_no_phone && !bluetooth_connection_service_peek())
   {
@@ -394,24 +343,24 @@ void phone_battery_update_callback(Layer *layer, GContext *ctx)
     graphics_draw_bitmap_in_rect(ctx, no_phone_bmp, image_rect);
     return;
   }
-  
+
   if (config_show_weather && (!config_show_phone_battery || left_info_mode == 0))
   {
     GRect image_rect = gbitmap_get_bounds(weather_icon_bmp);
     image_rect.origin.y += (13-image_rect.size.h)/2;
     graphics_draw_bitmap_in_rect(ctx, weather_icon_bmp, image_rect);
-    
+
     if (weather_temperature > -100)
     {
       int temp_x = image_rect.size.w + 4; //13;
       if (temp_x > 13) temp_x = 13;
       int temp_y = 4;
-    
+
       int digit1 = (weather_temperature / 10) % 10;
-      if (digit1 < 0) digit1 *= -1;      
+      if (digit1 < 0) digit1 *= -1;
       int digit2 = weather_temperature % 10;
       if (digit2 < 0) digit2 *= -1;
-    
+
       int dx, dy;
       for (dy = 0; dy < 5; dy++)
       {
@@ -449,7 +398,7 @@ void phone_battery_update_callback(Layer *layer, GContext *ctx)
 }
 
 static void accel_tap_handler(AccelAxisType axis, int32_t direction)
-{  
+{
   left_info_mode ^= 1;
   layer_mark_dirty(phone_battery_layer);
   persist_write_int(ID_LEFT_INFO_MODE, left_info_mode);
@@ -466,11 +415,7 @@ void battery_update_callback(Layer *layer, GContext *ctx)
       graphics_draw_bitmap_in_rect(ctx, watch_bmp, image_rect);
     else
       graphics_draw_bitmap_in_rect(ctx, battery_charging_bmp, image_rect);
-#if PBL_COLOR
-      graphics_context_set_fill_color(ctx, GColorWhite);
-#else
-      graphics_context_set_fill_color(ctx, GColorBlack);
-#endif
+    graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_fill_rect(ctx, GRect(9, 2, charge_state.charge_percent / 10, 5), 0, GCornerNone);
   }
 }
@@ -488,16 +433,15 @@ void update_character()
     gbitmap_destroy(mario_jump_bmp);
 
   int character = config_character;
-  
+
   // 1st April joke :)
   time_t t;
-  time(&t); 
+  time(&t);
   struct tm * tick_time = localtime(&t);
   if (tick_time->tm_year == 116 && tick_time->tm_mon == 3 && tick_time->tm_mday == 1) character = 2;
-  
+
   switch (character)
   {
-#if PBL_COLOR
     case 1:
       mario_normal_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_LUIGI_NORMAL);
       mario_jump_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_LUIGI_JUMP);
@@ -506,7 +450,6 @@ void update_character()
       mario_normal_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BOWSER_NORMAL);
       mario_jump_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BOWSER_JUMP);
       break;
-#endif
     default:
       mario_normal_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MARIO_NORMAL);
       mario_jump_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MARIO_JUMP);
@@ -518,11 +461,10 @@ void update_background()
 {
   if (background_day_bmp)
   gbitmap_destroy(background_day_bmp);
-#if PBL_COLOR
   if (!config_background)
   {
   time_t t;
-  time(&t); 
+  time(&t);
   struct tm * tick_time = localtime(&t);
 #ifdef DEMO
   int s = (tick_time->tm_sec + tick_time->tm_min*60) / 15;
@@ -541,23 +483,20 @@ void update_background()
   } else {
   switch (config_background)
   {
-    default: 
+    default:
     background_day_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND_DAY);
     break;
-    case 2: 
+    case 2:
     background_day_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND_NIGHT);
     break;
-    case 3: 
+    case 3:
     background_day_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND_UNDERGROUND);
     break;
-    case 4: 
+    case 4:
     background_day_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND_CASTLE);
     break;
   }
   }
-#else
-  background_day_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BACKGROUND_DAY);   
-#endif
 }
 
 void load_bitmaps()
@@ -716,7 +655,7 @@ void in_received_handler(DictionaryIterator *received, void *context) {
     update_character();
     layer_mark_dirty(mario_layer);
     persist_write_int(MSG_CHARACTER, config_character);
-  }  
+  }
   tuple = dict_find(received, MSG_BATTERY_ANSWER);
   if (tuple) {
     phone_battery_level = tuple->value->int8;
@@ -755,7 +694,7 @@ void handle_init()
   if (persist_exists(MSG_VIBE_HOUR))
     config_vibe_hour = persist_read_bool(MSG_VIBE_HOUR);
   if (persist_exists(MSG_BACKGROUND))
-    config_background = persist_read_int(MSG_BACKGROUND);  
+    config_background = persist_read_int(MSG_BACKGROUND);
   if (persist_exists(ID_WEATHER_LAST_UPDATE))
     weather_last_update = persist_read_int(ID_WEATHER_LAST_UPDATE);
   if (persist_exists(MSG_WEATHER_ICON_ID))
@@ -765,60 +704,29 @@ void handle_init()
   if (persist_exists(ID_LEFT_INFO_MODE))
     left_info_mode = persist_read_int(ID_LEFT_INFO_MODE);
   if (persist_exists(MSG_CHARACTER))
-    config_character = persist_read_int(MSG_CHARACTER);  
+    config_character = persist_read_int(MSG_CHARACTER);
 
   app_message_register_inbox_received(in_received_handler);
   app_message_open(128, 64);
   window = window_create();
 
-#if PBL_PLATFORM_CHALK
-  int offset_x = 18;
-  int offset_y = 6;
-  int screen_size_x = 180;
-  int screen_size_y = 180;
-#elif PBL_PLATFORM_EMERY
   int offset_x = 28;
   int offset_y = 55;
   int screen_size_x = 200;
   int screen_size_y = 228;
-#else
-  int offset_x = 0;
-  int offset_y = 0;
-  int screen_size_x = 144;
-  int screen_size_y = 168;
-#endif
 
   blocks_up_rect = GRect(22+offset_x, -10, BLOCK_SIZE*2, BLOCK_SIZE + 4);
-#if PBL_COLOR
   mario_down_rect = GRect(32 + offset_x, 168 - GROUND_HEIGHT-76 + 28 + 10 + offset_y - 32, 80, 80);
   mario_up_rect = GRect(32 + offset_x, BLOCK_SIZE + 4 + 10 + offset_y - 32, 80, 80);
   blocks_down_rect = GRect(22 + offset_x, 25 + offset_y, BLOCK_SIZE*2, BLOCK_SIZE + 4);
-#else
-  mario_down_rect = GRect(32, 168 - GROUND_HEIGHT - 80 + 10, 80, 80);
-  mario_up_rect = GRect(32, BLOCK_SIZE + 4, 80, 80);
-  blocks_down_rect = GRect(22, 16, BLOCK_SIZE*2, BLOCK_SIZE + 4);
-#endif
-  
+
   background_rect = GRect(0, 0, screen_size_x, screen_size_y);
-#if PBL_PLATFORM_CHALK
-  phone_battery_rect = GRect(3, 3+80, 24, 13);
-  battery_rect = GRect(119+36, 5+80, 22, 9);
-#elif PBL_PLATFORM_EMERY
   phone_battery_rect = GRect(3, 3, 24, 13);
   battery_rect = GRect(screen_size_x - 22 - 3, 5, 22, 9);
-#else
-  phone_battery_rect = GRect(3, 3, 24, 13);
-  battery_rect = GRect(119, 5, 22, 9);
-#endif
-#if PBL_PLATFORM_EMERY
+
   pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_GAMEGIRL_34));
   pixel_font_small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_EMULOGIC_11));
-#else
-  pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_GAMEGIRL_24));
-  //pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_EMULOGIC_24));
-  pixel_font_small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_EMULOGIC_8));
-#endif
-  
+
   time_up_rect = GRect(0, -15, BLOCK_SIZE*2, BLOCK_SIZE);
   time_normal_rect = GRect(0, 5 + 4 + 5, BLOCK_SIZE*2, BLOCK_SIZE);
   time_down_rect = GRect(0, BLOCK_SIZE + 4 + 5, BLOCK_SIZE*2, BLOCK_SIZE);
@@ -845,17 +753,17 @@ void handle_init()
   layer_add_child(blocks_layer, time_layer);
   layer_add_child(background_layer, blocks_layer);
   layer_add_child(background_layer, mario_layer);
-  
+
   window_stack_push(window, false);
 
   bluetooth_connection_service_subscribe(bluetooth_connection_callback);
   battery_state_service_subscribe(handle_battery);
   if (config_show_weather && config_show_phone_battery)
     accel_tap_service_subscribe(accel_tap_handler);
-  
+
   app_timer_register(1000, request_all_on_start, NULL);
 
-  load_bitmaps(); 
+  load_bitmaps();
   load_weather_icon();
 #ifdef DEMO
   light_enable(true);
@@ -871,7 +779,7 @@ void handle_deinit()
   if (mario_animation_beg)
     property_animation_destroy(mario_animation_beg);
   if (mario_animation_end)
-    property_animation_destroy(mario_animation_end);  
+    property_animation_destroy(mario_animation_end);
   if (block_animation_beg)
     property_animation_destroy(block_animation_beg);
   if (block_animation_end)
@@ -887,7 +795,7 @@ void handle_deinit()
   gbitmap_destroy(phone_battery_bmp);
   gbitmap_destroy(phone_battery_unknown_bmp);
   gbitmap_destroy(watch_bmp);
-  gbitmap_destroy(battery_charging_bmp);  
+  gbitmap_destroy(battery_charging_bmp);
   gbitmap_destroy(block_bmp);
   gbitmap_destroy(background_day_bmp);
   gbitmap_destroy(weather_icon_bmp);
@@ -901,9 +809,9 @@ void handle_deinit()
 
   fonts_unload_custom_font(pixel_font);
   fonts_unload_custom_font(pixel_font_small);
-  
+
   window_destroy(window);
-  
+
   bluetooth_connection_service_unsubscribe();
   battery_state_service_unsubscribe();
   app_message_deregister_callbacks();
@@ -983,7 +891,7 @@ void block_up_animation_stopped(Animation *animation, bool finished, void *data)
   animation_set_curve((Animation *)block_animation_end, AnimationCurveEaseIn);
   animation_schedule((Animation *)block_animation_end);
 
-  // Update background if need    
+  // Update background if need
   if (need_update_background)
   {
     need_update_background = 0;
@@ -993,7 +901,7 @@ void block_up_animation_stopped(Animation *animation, bool finished, void *data)
 }
 
 void handle_tick(struct tm *tick_time, TimeUnits units_changed)
-{  
+{
 #ifdef DEMO
   if (tick_time->tm_sec % 15 != 0) return;
 #endif
@@ -1016,17 +924,13 @@ void handle_tick(struct tm *tick_time, TimeUnits units_changed)
                                   &blocks_down_rect,
                                   &blocks_up_rect);
   animation_set_duration((Animation *)block_animation_beg, MARIO_JUMP_DURATION);
-#if PBL_COLOR
   animation_set_delay((Animation *)block_animation_beg, MARIO_JUMP_DURATION*4/9);
-#else
-  animation_set_delay((Animation *)block_animation_beg, MARIO_JUMP_DURATION/10);
-#endif
   animation_set_curve((Animation *)block_animation_beg, AnimationCurveEaseOut);
   animation_set_handlers((Animation *)block_animation_beg, (AnimationHandlers){
     .started = block_up_animation_started,
     .stopped = block_up_animation_stopped
   }, 0);
-  
+
 #ifdef DEMO
   int s = (tick_time->tm_sec + tick_time->tm_min*60) / 15;
   snprintf(hour_text, sizeof(hour_text), "%02d", ((s % 12) / 2 * 4 + 1));
@@ -1045,7 +949,7 @@ void handle_tick(struct tm *tick_time, TimeUnits units_changed)
 
   animation_schedule((Animation *)mario_animation_beg);
   animation_schedule((Animation *)block_animation_beg);
-  
+
   int weather_age = time(NULL)-weather_last_update;
   if (units_changed & MINUTE_UNIT)
   {
@@ -1060,7 +964,7 @@ void handle_tick(struct tm *tick_time, TimeUnits units_changed)
     load_weather_icon();
     layer_mark_dirty(phone_battery_layer);
   }
-  
+
   if (units_changed & HOUR_UNIT)
   {
     need_update_background = 1;
@@ -1071,7 +975,7 @@ void handle_tick(struct tm *tick_time, TimeUnits units_changed)
       VibePattern pat = {
         .durations = segments,
         .num_segments = ARRAY_LENGTH(segments),
-      };    
+      };
       vibes_enqueue_custom_pattern(pat);
     }
   }
