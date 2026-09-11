@@ -110,7 +110,6 @@ static char digits[10][15] = {{1,1,1,1,0,1,1,0,1,1,0,1,1,1,1},{0,0,1,0,0,1,0,0,1
 #define MARIO_JUMP_DURATION 150
 #define CLOCK_ANIMATION_DURATION 150
 #endif
-#define GROUND_HEIGHT 26
 
 #define WEATHER_MAX_AGE 60*60*3
 #define WEATHER_UPDATE_INTERVAL 60*60*1
@@ -711,14 +710,20 @@ void handle_init()
   window = window_create();
 
   int offset_x = 28;
-  int offset_y = 55;
   int screen_size_x = 200;
   int screen_size_y = 228;
 
+  // Blocks stay near the top, just under the date row -- Mario's head
+  // pokes up into them when he jumps. Mario's rest position is anchored
+  // separately so his feet land on the ground line in the background art.
+  int blocks_y = 34;
+  int mario_up_y = 80;
+  int mario_down_y = 127;
+
   blocks_up_rect = GRect(22+offset_x, -10, BLOCK_SIZE*2, BLOCK_SIZE + 4);
-  mario_down_rect = GRect(32 + offset_x, 168 - GROUND_HEIGHT-76 + 28 + 10 + offset_y - 32, 80, 80);
-  mario_up_rect = GRect(32 + offset_x, BLOCK_SIZE + 4 + 10 + offset_y - 32, 80, 80);
-  blocks_down_rect = GRect(22 + offset_x, 25 + offset_y, BLOCK_SIZE*2, BLOCK_SIZE + 4);
+  mario_down_rect = GRect(32 + offset_x, mario_down_y, 80, 80);
+  mario_up_rect = GRect(32 + offset_x, mario_up_y, 80, 80);
+  blocks_down_rect = GRect(22 + offset_x, blocks_y, BLOCK_SIZE*2, BLOCK_SIZE + 4);
 
   background_rect = GRect(0, 0, screen_size_x, screen_size_y);
   phone_battery_rect = GRect(3, 3, 24, 13);
