@@ -34,7 +34,8 @@ static Layer *mario_layer;
 static Layer *time_layer;
 static Layer *background_layer;
 static Layer *battery_layer;
-static Layer *phone_battery_layer;
+static Layer *weather_layer;
+static Layer *no_phone_layer;
 
 static char hour_text[3];
 static char minute_text[3];
@@ -48,7 +49,8 @@ static GRect mario_down_rect;
 static GRect mario_up_rect;
 static GRect background_rect;
 static GRect battery_rect;
-static GRect phone_battery_rect;
+static GRect weather_rect;
+static GRect no_phone_rect;
 static GRect time_up_rect;
 static GRect time_normal_rect;
 static GRect time_down_rect;
@@ -63,8 +65,6 @@ static GBitmap *mario_normal_bmp = NULL;
 static GBitmap *mario_jump_bmp = NULL;
 static GBitmap *block_bmp = NULL;
 static GBitmap *no_phone_bmp = NULL;
-static GBitmap *phone_battery_bmp = NULL;
-static GBitmap *phone_battery_unknown_bmp = NULL;
 static GBitmap *watch_bmp = NULL;
 static GBitmap *battery_charging_bmp = NULL;
 static GBitmap *background_day_bmp = NULL;
@@ -81,19 +81,15 @@ static PropertyAnimation *hour_animation_slide_in = NULL;
 
 static bool config_show_no_phone = true;
 static bool config_show_battery = true;
-static bool config_show_phone_battery = false;
 static bool config_show_weather = true;
 static bool config_vibe = false;
 static int config_character = 0;
 static int config_background = 0;
-static int phone_battery_level = -1;
 static bool config_vibe_hour = false;
 
 static time_t weather_last_update = 0;
 static int weather_icon_id = -1;
 static int weather_temperature = -100;
-
-static int left_info_mode = 0;
 
 static char digits[10][15] = {{1,1,1,1,0,1,1,0,1,1,0,1,1,1,1},{0,0,1,0,0,1,0,0,1,0,0,1,0,0,1},
                             {1,1,1,0,0,1,1,1,1,1,0,0,1,1,1},{1,1,1,0,0,1,1,1,1,0,0,1,1,1,1},
@@ -115,19 +111,20 @@ static char digits[10][15] = {{1,1,1,1,0,1,1,0,1,1,0,1,1,1,1},{0,0,1,0,0,1,0,0,1
 #define WEATHER_UPDATE_INTERVAL 60*60*1
 #define WEATHER_ROW_HEIGHT 26
 
+// The watch-battery and no-phone indicators are vertical icons sharing
+// the same box height as the weather row, for a consistent top margin.
+#define ICON_BOX_WIDTH 14
+#define ICON_BOX_HEIGHT WEATHER_ROW_HEIGHT
+
 #define MSG_SHOW_NO_PHONE 0
 #define MSG_SHOW_BATTERY 1
 #define MSG_VIBE 2
-#define MSG_BATTERY_REQUEST 4
-#define MSG_BATTERY_ANSWER 5
-#define MSG_SHOW_PHONE_BATTERY 6
 #define MSG_BACKGROUND 7
 #define MSG_SHOW_WEATHER 8
 #define ID_WEATHER_LAST_UPDATE 9
 #define MSG_WEATHER_ICON_ID 10
 #define MSG_WEATHER_TEMPERATURE 11
 #define MSG_WEATHER_REQUEST 12
-#define ID_LEFT_INFO_MODE 13
 #define MSG_VIBE_HOUR 14
 #define MSG_CHARACTER 15
 #ifdef DEMO
@@ -151,20 +148,12 @@ static void request_all()
 {
   int weather_age = time(NULL)-weather_last_update;
 
-  if (config_show_phone_battery || (config_show_weather && ((weather_age > WEATHER_UPDATE_INTERVAL))))
+  if (config_show_weather && (weather_age > WEATHER_UPDATE_INTERVAL))
   {
     DictionaryIterator *iter;
     app_message_outbox_begin(&iter);
-    if (config_show_phone_battery)
-    {
-      Tuplet tupleRequest = TupletInteger(MSG_BATTERY_REQUEST, 0);
-      dict_write_tuplet(iter, &tupleRequest);
-    }
-    if (config_show_weather && (weather_age > WEATHER_UPDATE_INTERVAL))
-    {
-      Tuplet tupleRequest = TupletInteger(MSG_WEATHER_REQUEST, 0);
-      dict_write_tuplet(iter, &tupleRequest);
-    }
+    Tuplet tupleRequest = TupletInteger(MSG_WEATHER_REQUEST, 0);
+    dict_write_tuplet(iter, &tupleRequest);
     app_message_outbox_send();
   }
 }
@@ -288,17 +277,19 @@ void ground_update_callback(Layer *layer, GContext *ctx)
 
   // Center the date in whatever's left between the weather box and the
   // battery box, rather than a hardcoded x -- keeps it centered even if
-  // those boxes get resized again later.
-  int zone_left = phone_battery_rect.origin.x + phone_battery_rect.size.w + 6;
+  // those boxes get resized again later. (The no-phone icon sits further
+  // right, closer to the battery box, and is usually hidden, so it isn't
+  // reserved space here -- same tradeoff the original design made.)
+  int zone_left = weather_rect.origin.x + weather_rect.size.w + 6;
   int zone_right = battery_rect.origin.x - 6;
 
   // Vertically align the date's ink with the middle of the weather icon.
   // FONT_EMULOGIC_11's glyphs sit ~3px below the box we hand graphics_draw_text
   // and are ~10px tall, so this centers that ink band on the icon's midline
-  // (phone_battery_rect.y + WEATHER_ROW_HEIGHT/2).
+  // (weather_rect.y + WEATHER_ROW_HEIGHT/2).
   int date_top_padding = 3;
   int date_ink_height = 10;
-  layer_bounds.origin.y = phone_battery_rect.origin.y
+  layer_bounds.origin.y = weather_rect.origin.y
       + (WEATHER_ROW_HEIGHT - date_ink_height) / 2 - date_top_padding;
   layer_bounds.origin.x = zone_left + ((zone_right - zone_left) - date_width_estimate) / 2;
 
@@ -337,103 +328,98 @@ void bluetooth_connection_callback(bool connected)
 
   if (connected)
     app_timer_register(5000, request_all_on_connect, NULL);
-  else phone_battery_level = -1;
-  layer_mark_dirty(phone_battery_layer);
+  layer_mark_dirty(no_phone_layer);
 }
 
-void phone_battery_update_callback(Layer *layer, GContext *ctx)
+void weather_update_callback(Layer *layer, GContext *ctx)
 {
-#ifdef DEMO
-  phone_battery_level = 8;
-#endif
   graphics_context_set_compositing_mode(ctx, GCompOpSet);
   graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_context_set_stroke_color(ctx, GColorWhite);
 
-  if (config_show_no_phone && !bluetooth_connection_service_peek())
-  {
-    GRect image_rect = gbitmap_get_bounds(no_phone_bmp);
-    image_rect.origin.y += 2;
-    graphics_draw_bitmap_in_rect(ctx, no_phone_bmp, image_rect);
-    return;
-  }
+  if (!config_show_weather) return;
 
-  if (config_show_weather && (!config_show_phone_battery || left_info_mode == 0))
-  {
-    GRect image_rect = gbitmap_get_bounds(weather_icon_bmp);
-    image_rect.origin.y += (WEATHER_ROW_HEIGHT-image_rect.size.h)/2;
-    graphics_draw_bitmap_in_rect(ctx, weather_icon_bmp, image_rect);
+  GRect image_rect = gbitmap_get_bounds(weather_icon_bmp);
+  image_rect.origin.y += (WEATHER_ROW_HEIGHT-image_rect.size.h)/2;
+  graphics_draw_bitmap_in_rect(ctx, weather_icon_bmp, image_rect);
 
-    if (weather_temperature > -100)
+  if (weather_temperature > -100)
+  {
+    // Temperature digits are hand-drawn from the 3x5 "digits" bitmap
+    // table, two device-pixels per table-pixel so they stay legible
+    // next to the bigger (2x) weather icon.
+    int temp_x = image_rect.size.w + 8; //26;
+    if (temp_x > 26) temp_x = 26;
+    int temp_y = 8;
+
+    int digit1 = (weather_temperature / 10) % 10;
+    if (digit1 < 0) digit1 *= -1;
+    int digit2 = weather_temperature % 10;
+    if (digit2 < 0) digit2 *= -1;
+
+    int dx, dy;
+    for (dy = 0; dy < 5; dy++)
     {
-      // Temperature digits are hand-drawn from the 3x5 "digits" bitmap
-      // table, two device-pixels per table-pixel so they stay legible
-      // next to the bigger (2x) weather icon.
-      int temp_x = image_rect.size.w + 8; //26;
-      if (temp_x > 26) temp_x = 26;
-      int temp_y = 8;
-
-      int digit1 = (weather_temperature / 10) % 10;
-      if (digit1 < 0) digit1 *= -1;
-      int digit2 = weather_temperature % 10;
-      if (digit2 < 0) digit2 *= -1;
-
-      int dx, dy;
-      for (dy = 0; dy < 5; dy++)
+      for (dx = 0; dx < 3; dx++)
       {
-        for (dx = 0; dx < 3; dx++)
-        {
-          if (digits[digit1][dx+dy*3])
-            graphics_fill_rect(ctx, GRect(temp_x+dx*2, temp_y+dy*2, 2, 2), 0, GCornerNone);
-          if (digits[digit2][dx+dy*3])
-            graphics_fill_rect(ctx, GRect(temp_x+dx*2+8, temp_y+dy*2, 2, 2), 0, GCornerNone);
-        }
-      }
-      graphics_fill_rect(ctx, GRect(temp_x+16, temp_y-4, 2, 2), 0, GCornerNone);
-      if (weather_temperature < 0)
-      {
-        graphics_fill_rect(ctx, GRect(temp_x-4, temp_y+4, 2, 2), 0, GCornerNone);
-        graphics_fill_rect(ctx, GRect(temp_x-6, temp_y+4, 2, 2), 0, GCornerNone);
+        if (digits[digit1][dx+dy*3])
+          graphics_fill_rect(ctx, GRect(temp_x+dx*2, temp_y+dy*2, 2, 2), 0, GCornerNone);
+        if (digits[digit2][dx+dy*3])
+          graphics_fill_rect(ctx, GRect(temp_x+dx*2+8, temp_y+dy*2, 2, 2), 0, GCornerNone);
       }
     }
-  }
-
-  if (config_show_phone_battery && (!config_show_weather || left_info_mode != 0))
-  {
-    if (phone_battery_level >= 0)
+    graphics_fill_rect(ctx, GRect(temp_x+16, temp_y-4, 2, 2), 0, GCornerNone);
+    if (weather_temperature < 0)
     {
-      GRect image_rect = gbitmap_get_bounds(phone_battery_bmp);
-      image_rect.origin.y += 2;
-      graphics_draw_bitmap_in_rect(ctx, phone_battery_bmp, image_rect);
-      graphics_fill_rect(ctx, GRect(9, 4, phone_battery_level, 5), 0, GCornerNone);
-    } else {
-      GRect image_rect = gbitmap_get_bounds(phone_battery_unknown_bmp);
-      image_rect.origin.y += 2;
-      graphics_draw_bitmap_in_rect(ctx, phone_battery_unknown_bmp, image_rect);
+      graphics_fill_rect(ctx, GRect(temp_x-4, temp_y+4, 2, 2), 0, GCornerNone);
+      graphics_fill_rect(ctx, GRect(temp_x-6, temp_y+4, 2, 2), 0, GCornerNone);
     }
   }
 }
 
-static void accel_tap_handler(AccelAxisType axis, int32_t direction)
+// Vertical "no signal" icon, top-right next to the battery -- only drawn
+// at all while the phone is disconnected, per config_show_no_phone.
+void no_phone_update_callback(Layer *layer, GContext *ctx)
 {
-  left_info_mode ^= 1;
-  layer_mark_dirty(phone_battery_layer);
-  persist_write_int(ID_LEFT_INFO_MODE, left_info_mode);
+  if (!config_show_no_phone || bluetooth_connection_service_peek()) return;
+
+  graphics_context_set_compositing_mode(ctx, GCompOpSet);
+  GRect image_rect = gbitmap_get_bounds(no_phone_bmp);
+  image_rect.origin.x += (ICON_BOX_WIDTH - image_rect.size.w) / 2;
+  image_rect.origin.y += (ICON_BOX_HEIGHT - image_rect.size.h) / 2;
+  graphics_draw_bitmap_in_rect(ctx, no_phone_bmp, image_rect);
 }
 
 void battery_update_callback(Layer *layer, GContext *ctx)
 {
   if (config_show_battery)
   {
-    GRect image_rect = gbitmap_get_bounds(watch_bmp);
+    GBitmap *bmp = watch_bmp;
     BatteryChargeState charge_state = battery_state_service_peek();
+    if (charge_state.is_charging) bmp = battery_charging_bmp;
+
+    GRect image_rect = gbitmap_get_bounds(bmp);
+    int icon_x = (ICON_BOX_WIDTH - image_rect.size.w) / 2;
+    int icon_y = (ICON_BOX_HEIGHT - image_rect.size.h) / 2;
+    image_rect.origin.x += icon_x;
+    image_rect.origin.y += icon_y;
+
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
-    if (!charge_state.is_charging)
-      graphics_draw_bitmap_in_rect(ctx, watch_bmp, image_rect);
-    else
-      graphics_draw_bitmap_in_rect(ctx, battery_charging_bmp, image_rect);
+    graphics_draw_bitmap_in_rect(ctx, bmp, image_rect);
+
+    // The icon's hollow body (measured on the rotated artwork) is a 7px-wide,
+    // 12px-tall interior starting 1px in from its left edge and 8px down
+    // from its top. The charge fill sits inside that, growing up from the
+    // bottom as charge increases, like a fuel gauge.
+    int interior_x = 1, interior_w = 7;
+    int interior_top = 8, interior_h = 12;
+    int filled_h = (charge_state.charge_percent * interior_h) / 100;
+
     graphics_context_set_fill_color(ctx, GColorWhite);
-    graphics_fill_rect(ctx, GRect(9, 2, charge_state.charge_percent / 10, 5), 0, GCornerNone);
+    graphics_fill_rect(ctx, GRect(
+        icon_x + interior_x,
+        icon_y + interior_top + (interior_h - filled_h),
+        interior_w, filled_h), 0, GCornerNone);
   }
 }
 
@@ -520,8 +506,6 @@ void load_bitmaps()
 {
   if (no_phone_bmp)
     gbitmap_destroy(no_phone_bmp);
-  if (phone_battery_bmp)
-    gbitmap_destroy(phone_battery_bmp);
   if (watch_bmp)
     gbitmap_destroy(watch_bmp);
   if (battery_charging_bmp)
@@ -530,8 +514,6 @@ void load_bitmaps()
     gbitmap_destroy(block_bmp);
 
   no_phone_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_NO_PHONE);
-  phone_battery_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PHONE_BATTERY);
-  phone_battery_unknown_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PHONE_BATTERY_UNKNOWN);
   watch_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_WATCH_BATTERY);
   battery_charging_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY_CHARGING);
   block_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BLOCK);
@@ -612,7 +594,7 @@ void in_received_handler(DictionaryIterator *received, void *context) {
       config_show_no_phone = (strcmp(tuple->value->cstring, "true") == 0);
     else
       config_show_no_phone = tuple->value->int8;
-    layer_mark_dirty(phone_battery_layer);
+    layer_mark_dirty(no_phone_layer);
     persist_write_bool(MSG_SHOW_NO_PHONE, config_show_no_phone);
   }
   tuple = dict_find(received, MSG_SHOW_BATTERY);
@@ -625,22 +607,13 @@ void in_received_handler(DictionaryIterator *received, void *context) {
     persist_write_bool(MSG_SHOW_BATTERY, config_show_battery);
     request_all();
   }
-  tuple = dict_find(received, MSG_SHOW_PHONE_BATTERY);
-  if (tuple) {
-    if (tuple->type == TUPLE_CSTRING)
-      config_show_phone_battery = (strcmp(tuple->value->cstring, "true") == 0);
-    else
-      config_show_phone_battery = tuple->value->int8;
-    layer_mark_dirty(phone_battery_layer);
-    persist_write_bool(MSG_SHOW_PHONE_BATTERY, config_show_phone_battery);
-  }
   tuple = dict_find(received, MSG_SHOW_WEATHER);
   if (tuple) {
     if (tuple->type == TUPLE_CSTRING)
       config_show_weather = (strcmp(tuple->value->cstring, "true") == 0);
     else
       config_show_weather = tuple->value->int8;
-    layer_mark_dirty(phone_battery_layer);
+    layer_mark_dirty(weather_layer);
     persist_write_bool(MSG_SHOW_WEATHER, config_show_weather);
   }
   tuple = dict_find(received, MSG_VIBE);
@@ -673,11 +646,6 @@ void in_received_handler(DictionaryIterator *received, void *context) {
     layer_mark_dirty(mario_layer);
     persist_write_int(MSG_CHARACTER, config_character);
   }
-  tuple = dict_find(received, MSG_BATTERY_ANSWER);
-  if (tuple) {
-    phone_battery_level = tuple->value->int8;
-    layer_mark_dirty(phone_battery_layer);
-  }
   tuple = dict_find(received, MSG_WEATHER_ICON_ID);
   if (tuple) {
     weather_icon_id = tuple->value->int8;
@@ -685,15 +653,11 @@ void in_received_handler(DictionaryIterator *received, void *context) {
     if (tuple) weather_temperature = tuple->value->int8;
     weather_last_update = time(NULL);
     load_weather_icon();
-    layer_mark_dirty(phone_battery_layer);
+    layer_mark_dirty(weather_layer);
     persist_write_int(ID_WEATHER_LAST_UPDATE, weather_last_update);
     persist_write_int(MSG_WEATHER_ICON_ID, weather_icon_id);
     persist_write_int(MSG_WEATHER_TEMPERATURE, weather_temperature);
   }
-  if (config_show_weather && config_show_phone_battery)
-    accel_tap_service_subscribe(accel_tap_handler);
-  else
-    accel_tap_service_unsubscribe();
 }
 
 void handle_init()
@@ -702,8 +666,6 @@ void handle_init()
     config_show_no_phone = persist_read_bool(MSG_SHOW_NO_PHONE);
   if (persist_exists(MSG_SHOW_BATTERY))
     config_show_battery = persist_read_bool(MSG_SHOW_BATTERY);
-  if (persist_exists(MSG_SHOW_PHONE_BATTERY))
-    config_show_phone_battery = persist_read_bool(MSG_SHOW_PHONE_BATTERY);
   if (persist_exists(MSG_SHOW_WEATHER))
     config_show_weather = persist_read_bool(MSG_SHOW_WEATHER);
   if (persist_exists(MSG_VIBE))
@@ -718,8 +680,6 @@ void handle_init()
     weather_icon_id = persist_read_int(MSG_WEATHER_ICON_ID);
   if (persist_exists(MSG_WEATHER_TEMPERATURE))
     weather_temperature = persist_read_int(MSG_WEATHER_TEMPERATURE);
-  if (persist_exists(ID_LEFT_INFO_MODE))
-    left_info_mode = persist_read_int(ID_LEFT_INFO_MODE);
   if (persist_exists(MSG_CHARACTER))
     config_character = persist_read_int(MSG_CHARACTER);
 
@@ -751,8 +711,12 @@ void handle_init()
   background_rect = GRect(0, 0, screen_size_x, screen_size_y);
   // Wide/tall enough for the 2x weather icon plus its temperature digits;
   // still well clear of the blocks, which start at blocks_y (34).
-  phone_battery_rect = GRect(3, 3, 48, WEATHER_ROW_HEIGHT);
-  battery_rect = GRect(screen_size_x - 22 - 3, 5, 22, 9);
+  weather_rect = GRect(3, 3, 48, WEATHER_ROW_HEIGHT);
+  // Battery in the corner, no-phone icon just to its left -- both are
+  // vertical (rotated) icons now, so they take a narrow column each
+  // instead of the width a horizontal icon needed.
+  battery_rect = GRect(screen_size_x - ICON_BOX_WIDTH - 3, 3, ICON_BOX_WIDTH, ICON_BOX_HEIGHT);
+  no_phone_rect = GRect(battery_rect.origin.x - ICON_BOX_WIDTH - 4, 3, ICON_BOX_WIDTH, ICON_BOX_HEIGHT);
 
   pixel_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_GAMEGIRL_34));
   pixel_font_small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_EMULOGIC_11));
@@ -765,21 +729,24 @@ void handle_init()
   mario_layer = layer_create(mario_down_rect);
   background_layer = layer_create(background_rect);
   battery_layer = layer_create(battery_rect);
-  phone_battery_layer = layer_create(phone_battery_rect);
+  weather_layer = layer_create(weather_rect);
+  no_phone_layer = layer_create(no_phone_rect);
   time_layer = layer_create(time_normal_rect);
 
   layer_set_update_proc(blocks_layer, &blocks_update_callback);
   layer_set_update_proc(mario_layer, &mario_update_callback);
   layer_set_update_proc(background_layer, &ground_update_callback);
   layer_set_update_proc(battery_layer, &battery_update_callback);
-  layer_set_update_proc(phone_battery_layer, &phone_battery_update_callback);
+  layer_set_update_proc(weather_layer, &weather_update_callback);
+  layer_set_update_proc(no_phone_layer, &no_phone_update_callback);
   layer_set_update_proc(time_layer, &time_update_callback);
 
   Layer *window_layer = window_get_root_layer(window);
 
   layer_add_child(window_layer, background_layer);
   layer_add_child(background_layer, battery_layer);
-  layer_add_child(background_layer, phone_battery_layer);
+  layer_add_child(background_layer, weather_layer);
+  layer_add_child(background_layer, no_phone_layer);
   layer_add_child(blocks_layer, time_layer);
   layer_add_child(background_layer, blocks_layer);
   layer_add_child(background_layer, mario_layer);
@@ -788,8 +755,6 @@ void handle_init()
 
   bluetooth_connection_service_subscribe(bluetooth_connection_callback);
   battery_state_service_subscribe(handle_battery);
-  if (config_show_weather && config_show_phone_battery)
-    accel_tap_service_subscribe(accel_tap_handler);
 
   app_timer_register(1000, request_all_on_start, NULL);
 
@@ -822,8 +787,6 @@ void handle_deinit()
   gbitmap_destroy(mario_normal_bmp);
   gbitmap_destroy(mario_jump_bmp);
   gbitmap_destroy(no_phone_bmp);
-  gbitmap_destroy(phone_battery_bmp);
-  gbitmap_destroy(phone_battery_unknown_bmp);
   gbitmap_destroy(watch_bmp);
   gbitmap_destroy(battery_charging_bmp);
   gbitmap_destroy(block_bmp);
@@ -835,7 +798,8 @@ void handle_deinit()
   layer_destroy(mario_layer);
   layer_destroy(blocks_layer);
   layer_destroy(battery_layer);
-  layer_destroy(phone_battery_layer);
+  layer_destroy(weather_layer);
+  layer_destroy(no_phone_layer);
 
   fonts_unload_custom_font(pixel_font);
   fonts_unload_custom_font(pixel_font_small);
@@ -845,7 +809,6 @@ void handle_deinit()
   bluetooth_connection_service_unsubscribe();
   battery_state_service_unsubscribe();
   app_message_deregister_callbacks();
-  accel_tap_service_unsubscribe();
 }
 
 void mario_down_animation_stopped(Animation *animation, bool finished, void *data)
@@ -983,16 +946,13 @@ void handle_tick(struct tm *tick_time, TimeUnits units_changed)
   int weather_age = time(NULL)-weather_last_update;
   if (units_changed & MINUTE_UNIT)
   {
-    if (
-         (config_show_phone_battery /* && ((phone_battery_level < 0) || (tick_time->tm_min % 30 == 0))*/)
-         || (config_show_weather && (tick_time->tm_min % 5 == 0) && (weather_age > WEATHER_UPDATE_INTERVAL))
-       )
+    if (config_show_weather && (tick_time->tm_min % 5 == 0) && (weather_age > WEATHER_UPDATE_INTERVAL))
       request_all();
   }
   if (config_show_weather && (weather_age > WEATHER_MAX_AGE) && (weather_icon_id >= 0))
   {
     load_weather_icon();
-    layer_mark_dirty(phone_battery_layer);
+    layer_mark_dirty(weather_layer);
   }
 
   if (units_changed & HOUR_UNIT)
